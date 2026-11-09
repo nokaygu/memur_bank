@@ -1,0 +1,26 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    prefer_const_constructors: error
+    prefer_const_declarations: error
+    prefer_const_literals_to_create_immutables: error
+    deprecated_member_use: error
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
+
+linter:
+  rules:
+    - prefer_const_constructors
+    - prefer_const_constructors_in_immutables
+    - prefer_const_declarations
+    - prefer_const_literals_to_create_immutables
+    - prefer_final_fields
+    - avoid_print
+    - use_key_in_widget_constructors
