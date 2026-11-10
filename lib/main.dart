@@ -17,14 +17,17 @@ Future<void> main() async {
 
   try {
     await dotenv.load(fileName: '.env');
-    final url = dotenv.maybeGet('SUPABASE_URL') ?? '';
-    final anonKey = dotenv.maybeGet('SUPABASE_ANON_KEY') ?? '';
+    final rawUrl = dotenv.maybeGet('SUPABASE_URL') ?? '';
+    final url = SupabaseService.normalizeSupabaseUrl(rawUrl);
+    final anonKey = (dotenv.maybeGet('SUPABASE_ANON_KEY') ?? '').trim();
 
     if (url.isNotEmpty &&
         anonKey.isNotEmpty &&
         !url.contains('your-project-id')) {
       await Supabase.initialize(url: url, publishableKey: anonKey);
       supabaseService.markInitialized(true);
+    } else {
+      supabaseService.markInitialized(false);
     }
   } catch (_) {
     // .env veya bağlantı yoksa yerel Fallback (4 memur + 2 bekleyen avans) devreye girer.

@@ -13,7 +13,7 @@ Bu yetenek, projede kod üretilirken **mümkün olan her yerde `const` kullanıl
    - Tüm widget kurucuları `const` olarak tanımlanır (`const ProfileHeaderWidget({super.key});`).
    - `StatelessWidget` içinde `build` metodunda **asla `TextEditingController()` oluşturulmaz**! Tüm metin girdileri (`amount`, `reason`, `searchQuery` vb.) doğrudan `TextFormField(key: ValueKey('...-${state.formPresetVersion}'), initialValue: ..., onChanged: (val) => context.read<BankCubit>()...)` ile `BankCubit` içine aktarılır. Böylece hızlı tutar/gerekçe çiplerine basıldığında `formPresetVersion` artırılarak `TextFormField` içeriği `%100 StatelessWidget` kalarak anında güncellenir.
 2. **Supabase SQL Sütun İsimlerine Sadakat:**
-   - `profiles` tablosu sütunları: `id`, `full_name`, `kurum_sicil_no`, `unvan`, `balance`, `role`, `is_frozen`.
+   - `profiles` tablosu sütunları: `id`, `full_name`, `kurum_sicil_no`, `password`, `unvan`, `balance`, `role`, `is_frozen`.
    - `advance_requests` tablosu sütunları: `id`, `user_id`, `full_name`, `amount`, `reason`, `status`, `created_at`.
 3. **Kronolojik İlerleme Kaydı (`yapilanlar.md`):**
    - Tamamlanan her geliştirme adımı `yapilanlar.md` dosyasının en altına `[ADIM-XX | YYYY-AA-GG SS:DD]` etiketiyle (append-only) eklenir.
@@ -28,6 +28,7 @@ class ProfileModel {
   final String id;
   final String fullName;
   final String kurumSicilNo;
+  final String password;
   final String unvan;
   final double balance;
   final String role; // 'user', 'manager', 'admin'
@@ -37,6 +38,7 @@ class ProfileModel {
     required this.id,
     required this.fullName,
     required this.kurumSicilNo,
+    required this.password,
     required this.unvan,
     required this.balance,
     required this.role,
@@ -52,6 +54,7 @@ class ProfileModel {
       id: json['id'] as String? ?? '',
       fullName: json['full_name'] as String? ?? '',
       kurumSicilNo: json['kurum_sicil_no'] as String? ?? '',
+      password: json['password'] as String? ?? '',
       unvan: json['unvan'] as String? ?? '',
       balance: (json['balance'] as num?)?.toDouble() ?? 0.0,
       role: json['role'] as String? ?? 'user',
@@ -64,6 +67,7 @@ class ProfileModel {
       'id': id,
       'full_name': fullName,
       'kurum_sicil_no': kurumSicilNo,
+      'password': password,
       'unvan': unvan,
       'balance': balance,
       'role': role,

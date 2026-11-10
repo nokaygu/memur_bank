@@ -23,6 +23,7 @@ class ManagementPanelScreen extends StatelessWidget {
       builder: (context, state) {
         final cubit = context.read<BankCubit>();
         final tabIndex = state.managementTabIndex;
+        final sortedRequests = state.sortedRequestsForManagement;
 
         return RefreshIndicator(
           onRefresh: cubit.loadInitialData,
@@ -36,7 +37,8 @@ class ManagementPanelScreen extends StatelessWidget {
 
               // 3. Sekme İçerikleri
               if (tabIndex == 0) ...[
-                if (state.requests.isEmpty)
+                const SliverToBoxAdapter(child: _ApprovalQueueSummaryHeader()),
+                if (sortedRequests.isEmpty)
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: AppPaddings.allXxl,
@@ -52,9 +54,9 @@ class ManagementPanelScreen extends StatelessWidget {
                   )
                 else
                   SliverList.builder(
-                    itemCount: state.requests.length,
+                    itemCount: sortedRequests.length,
                     itemBuilder: (context, index) =>
-                        RequestCardWidget(request: state.requests[index]),
+                        RequestCardWidget(request: sortedRequests[index]),
                   ),
               ] else if (tabIndex == 1) ...[
                 const SliverToBoxAdapter(child: _OfficerSearchAndCreateBar()),
@@ -74,6 +76,55 @@ class ManagementPanelScreen extends StatelessWidget {
 
               const SliverToBoxAdapter(child: AppPaddings.vGapXxxl),
             ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ApprovalQueueSummaryHeader extends StatelessWidget {
+  const _ApprovalQueueSummaryHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final ext = theme.extension<MemurBankThemeExtension>()!;
+
+    return BlocBuilder<BankCubit, BankState>(
+      builder: (context, state) {
+        final pendingCount = state.pendingRequests.length;
+        final decidedCount = state.requests.length - pendingCount;
+
+        return Padding(
+          padding: AppPaddings.sectionMargin,
+          child: Container(
+            padding: AppPaddings.cardPaddingCompact,
+            decoration: BoxDecoration(
+              color: ext.subtleCardBg,
+              borderRadius: AppPaddings.radiusMd,
+              border: Border.all(color: colorScheme.outline),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.priority_high_rounded,
+                  size: AppPaddings.iconSm,
+                  color: ext.pendingAmber,
+                ),
+                AppPaddings.hGapXs,
+                Expanded(
+                  child: Text(
+                    'Öncelikli Onay Sırası: $pendingCount Bekleyen Talep üstte • $decidedCount Karara Bağlanmış Talep altta listelenir.',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -285,6 +336,7 @@ class _OfficerSearchAndCreateBar extends StatelessWidget {
 
   void _openAddOfficerSheet(BuildContext context) {
     final cubit = context.read<BankCubit>();
+    cubit.clearFeedback();
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -306,6 +358,7 @@ class _OfficerSearchAndCreateBar extends StatelessWidget {
     return BlocBuilder<BankCubit, BankState>(
       builder: (context, state) {
         final cubit = context.read<BankCubit>();
+        final isAdmin = state.activeProfile.isAdmin;
         final frozenCount = state.profiles.where((p) => p.isFrozen).length;
         final managerCount = state.profiles
             .where((p) => p.isAdminOrManager)
@@ -347,31 +400,36 @@ class _OfficerSearchAndCreateBar extends StatelessWidget {
                   Expanded(
                     child: TextField(
                       onChanged: cubit.setOfficerSearchQuery,
+                      textInputAction: TextInputAction.search,
                       decoration: const InputDecoration(
                         hintText: 'Memur Adı, Sicil No veya Unvan Ara...',
                         prefixIcon: Icon(Icons.search),
                       ),
                     ),
                   ),
-                  AppPaddings.hGapSm,
-                  FilledButton.icon(
-                    onPressed: () => _openAddOfficerSheet(context),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: colorScheme.secondary,
-                      foregroundColor: colorScheme.onSecondary,
-                      padding: AppPaddings.buttonPadding,
+                  if (isAdmin) ...[
+                    AppPaddings.hGapSm,
+                    FilledButton.icon(
+                      onPressed: () => _openAddOfficerSheet(context),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: colorScheme.secondary,
+                        foregroundColor: colorScheme.onSecondary,
+                        padding: AppPaddings.buttonPadding,
+                      ),
+                      icon: const Icon(
+                        Icons.person_add_alt_1,
+                        size: AppPaddings.iconSm,
+                      ),
+                      label: const Text('Yeni Memur Ekle'),
                     ),
-                    icon: const Icon(
-                      Icons.person_add_alt_1,
-                      size: AppPaddings.iconSm,
-                    ),
-                    label: const Text('Yeni Memur Ekle'),
-                  ),
+                  ],
                 ],
               ),
               AppPaddings.vGapXs,
               Text(
-                'İpucu: Bir memura tıklayarak Tanrı Modu (Promosyon Gönder, Maaş Yatır, Müdür Yap, Hesabı Dondur) BottomSheet menüsünü açabilirsiniz.',
+                isAdmin
+                    ? 'İpucu: Bir memura tıklayarak Tanrı Modu (Promosyon Gönder, Maaş Yatır, Müdür Yap, Hesabı Dondur) BottomSheet menüsünü açabilirsiniz.'
+                    : 'Bilgi: Kurum Mutemedi (Manager) rolüyle memur sicil ve maaş özetlerini inceleyebilirsiniz. Tanrı Modu müdahale yetkileri Başmüfettiş (Admin) rolüne özeldir.',
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -428,9 +486,18 @@ class _SegmentFilterChip extends StatelessWidget {
 class _AddNewOfficerBottomSheet extends StatelessWidget {
   const _AddNewOfficerBottomSheet();
 
+  Future<void> _submitNewOfficer(BuildContext context, BankCubit cubit) async {
+    final success = await cubit.addNewOfficer();
+    if (success && context.mounted) {
+      Navigator.of(context).pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final ext = theme.extension<MemurBankThemeExtension>()!;
 
     return BlocBuilder<BankCubit, BankState>(
       builder: (context, state) {
@@ -443,19 +510,48 @@ class _AddNewOfficerBottomSheet extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Sisteme Yeni Kamu Personeli (Memur) Ekle',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Sisteme Yeni Kamu Personeli (Memur) Ekle',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
                 ),
+                if (state.isErrorFeedback && state.feedbackMessage != null) ...[
+                  AppPaddings.vGapXs,
+                  Container(
+                    padding: AppPaddings.cardPaddingCompact,
+                    decoration: BoxDecoration(
+                      color: ext.rejectedRed,
+                      borderRadius: AppPaddings.radiusMd,
+                    ),
+                    child: Text(
+                      state.feedbackMessage!,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onError,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
                 AppPaddings.vGapMd,
                 TextFormField(
                   key: ValueKey('new_officer_name_${state.formPresetVersion}'),
                   initialValue: state.newOfficerName,
+                  textInputAction: TextInputAction.next,
                   onChanged: cubit.setNewOfficerName,
                   decoration: const InputDecoration(
-                    labelText: 'Ad Soyad (Örn: Zeynep Aktaş)',
+                    labelText: 'Ad Soyad (Zorunlu)',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
                 ),
@@ -463,16 +559,31 @@ class _AddNewOfficerBottomSheet extends StatelessWidget {
                 TextFormField(
                   key: ValueKey('new_officer_sicil_${state.formPresetVersion}'),
                   initialValue: state.newOfficerSicilNo,
+                  textInputAction: TextInputAction.next,
                   onChanged: cubit.setNewOfficerSicilNo,
                   decoration: const InputDecoration(
-                    labelText: 'Kurum Sicil No',
+                    labelText: 'Kurum Sicil No (Zorunlu • Örn: MEB-2090)',
                     prefixIcon: Icon(Icons.badge_outlined),
+                  ),
+                ),
+                AppPaddings.vGapSm,
+                TextFormField(
+                  key: ValueKey(
+                    'new_officer_password_${state.formPresetVersion}',
+                  ),
+                  initialValue: state.newOfficerPassword,
+                  textInputAction: TextInputAction.next,
+                  onChanged: cubit.setNewOfficerPassword,
+                  decoration: const InputDecoration(
+                    labelText: 'Giriş Şifresi (Zorunlu)',
+                    prefixIcon: Icon(Icons.lock_outline),
                   ),
                 ),
                 AppPaddings.vGapSm,
                 TextFormField(
                   key: ValueKey('new_officer_unvan_${state.formPresetVersion}'),
                   initialValue: state.newOfficerUnvan,
+                  textInputAction: TextInputAction.next,
                   onChanged: cubit.setNewOfficerUnvan,
                   decoration: const InputDecoration(
                     labelText: 'Unvan (Örn: Uzman Tabip / Mühendis)',
@@ -486,7 +597,9 @@ class _AddNewOfficerBottomSheet extends StatelessWidget {
                   ),
                   initialValue: state.newOfficerBalance,
                   keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.done,
                   onChanged: cubit.setNewOfficerBalance,
+                  onFieldSubmitted: (_) => _submitNewOfficer(context, cubit),
                   decoration: const InputDecoration(
                     labelText: 'Başlangıç Maaş Bakiyesi (₺)',
                     prefixIcon: Icon(Icons.currency_lira),
@@ -494,10 +607,9 @@ class _AddNewOfficerBottomSheet extends StatelessWidget {
                 ),
                 AppPaddings.vGapLg,
                 FilledButton.icon(
-                  onPressed: () {
-                    cubit.addNewOfficer();
-                    Navigator.of(context).pop();
-                  },
+                  onPressed: state.isLoading
+                      ? null
+                      : () => _submitNewOfficer(context, cubit),
                   style: FilledButton.styleFrom(
                     padding: AppPaddings.buttonPadding,
                   ),

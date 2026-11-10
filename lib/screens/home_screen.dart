@@ -30,8 +30,9 @@ class HomeScreen extends StatelessWidget {
               // 1. Üstteki Bakiye, Sicil No, Unvan ve Ayın 15'i Maaş Yatış Sayacı (const zorunlu!)
               const SliverToBoxAdapter(child: ProfileHeaderWidget()),
 
-              // Yöntem B: Sadece Admin veya Manager ise görünen Teftiş Kurulu Kartıif (state.activeProfile.isAdminOrManager)
-              const SliverToBoxAdapter(child: AdminDashboardCard()),
+              // Yöntem B: Sadece Admin veya Manager ise görünen Teftiş Kurulu / Mutemetlik Kartı
+              if (state.activeProfile.isAdminOrManager)
+                const SliverToBoxAdapter(child: AdminDashboardCard()),
 
               // 2. Kaydırınca yukarıya yapışan (Sticky) başlık - const PinnedHeaderSliver!
               const PinnedHeaderSliver(child: FilterBarWidget()),
@@ -61,11 +62,26 @@ class HomeScreen extends StatelessWidget {
               // 4. Son Hesap Hareketleri & Dijital Dekontlar Başlığı ve SliverList.builder
               const SliverToBoxAdapter(child: _RecentTransactionsHeader()),
 
-              SliverList.builder(
-                itemCount: txList.length,
-                itemBuilder: (context, index) =>
-                    TransactionItemWidget(transaction: txList[index]),
-              ),
+              if (txList.isEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: AppPaddings.allXxl,
+                    child: Center(
+                      child: Text(
+                        'Henüz bu hesaba ait dijital işlem veya dekont kaydı bulunmuyor.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                SliverList.builder(
+                  itemCount: txList.length,
+                  itemBuilder: (context, index) =>
+                      TransactionItemWidget(transaction: txList[index]),
+                ),
 
               const SliverToBoxAdapter(child: AppPaddings.vGapXxxl),
             ],

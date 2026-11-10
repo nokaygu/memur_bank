@@ -70,10 +70,53 @@
 - [x] **[RESET KORUMASI, BLOKE UYARISI & TEMİZ FORM]** `resetDatabaseAndReload()` sırasında aktif memur UUID'sinin korunması (`keepProfileId: currentActiveId`), `ProfileHeaderWidget` üzerinde dondurulmuş hesaplar (`is_frozen == true`) için kırmızı MASAK/Teftiş Kurulu uyarı bandı gösterilmesi, `_AddNewOfficerBottomSheet` form alanlarının `TextFormField` ile senkronize edilip sıfırlanması ve `advance_requests.reason` sütununun SQL şemasıyla birebir temiz tutulması sağlandı
 - [x] **[TEST & ANALİZ]** `test/widget_test.dart` yeni 3D otomatik Splash geçişi ve Sicil No doğrulama senaryolarıyla güncellendi; `flutter analyze` (0 hata / 0 uyarı) ve `flutter test` (`All tests passed!`) doğrulandı
 
+---
+
+## [ADIM-06 | 2026-11-10 21:55] — Zorunlu `password` SQL Şeması, Şifre Doğrulama ve Kalıcı Fallback / Canlı Supabase Bildirim Sistemi
+
+- [x] **[SQL & PROFILE MODEL]** `reset_memur_bank()` SQL fonksiyonu `password TEXT NOT NULL` ve `kurum_sicil_no TEXT NOT NULL UNIQUE` kısıtlarıyla tek ve kesin yapıya kavuşturuldu; `lib/models/profile_model.dart` içerisine varsayılan değeri olmayan zorunlu `required this.password` alanı eklendi
+- [x] **[SUPABASE SERVICE & BAĞLANTI DURUMU]** `lib/services/supabase_service.dart` içerisindeki 4 varsayılan memura `password: '123'`, `createOfficerProfile` metoduna `required String password` ve canlı/yerel bağlantı durumunu izleyen `isUsingFallback` özelliği eklendi
+- [x] **[KALICI FALLBACK BANNER & CANLI SUPABASE SNACKBAR]** `lib/widgets/role_switcher_bar.dart` içerisine `FallbackModeStickyBanner` bileşeni eklendi; uygulama yerel Fallback modunda çalışırken `LoginScreen` ve `MainShellScreen` en üstünde (AppBar altında) kalıcı *"⚠️ YEREL FALLBACK (DEMO) MODU AKTİF"* uyarı bandı ve *"Yeniden Bağlan"* (`retrySupabaseConnection`) aksiyonu gösterilmesi, canlı Supabase bağlantısı sağlandığında ise yeşil onay SnackBar'ı ile bildirim verilmesi kodlandı
+- [x] **[SİCİL NO + ŞİFRE DOĞRULAMA & TANRI MODU]** `LoginScreen` üzerine şifre gizle/göster (`isLoginPasswordObscured`) destekli **Giriş Şifresi** alanı ve `_AddNewOfficerBottomSheet` içerisine zorunlu yeni memur şifresi alanı eklendi; `loginWithCredentials()` metodunun hem Sicil No hem de `password` eşleşmesini doğrulaması sağlandı
+- [x] **[DOKÜMANTASYON, TEST & ANALİZ]** `project.md`, `.agents/skills/skill.md` ve `test/widget_test.dart` güncellendi; `flutter analyze` (0 hata / 0 uyarı) ve `flutter test` (`All tests passed!`) doğrulandı
+
+---
+
+## [ADIM-07 | 2026-11-10 22:06] — Android, iOS ve macOS Platform İzinleri, Entitlements ve İkon Bütünlüğü
+
+- [x] **[ANDROID PERMISSIONS]** `android/app/src/main/AndroidManifest.xml` içerisine Release ve tüm çalışma modlarında Supabase HTTPS bağlantısının kesintisiz sağlanması için `<uses-permission android:name="android.permission.INTERNET" />` ve `<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />` izinleri eklendi
+- [x] **[MACOS ENTITLEMENTS & İKON]** `macos/Runner/DebugProfile.entitlements` ve `macos/Runner/Release.entitlements` dosyalarına App Sandbox dış ağ erişimi için `<key>com.apple.security.network.client</key><true/>` yetkisi eklendi; `macos/Runner/Configs/AppInfo.xcconfig` içinde `PRODUCT_NAME = MemurBank` yapıldı ve `macos/Runner/Assets.xcassets/AppIcon.appiconset/` içindeki tüm macOS ikonları (`16px` .. `1024px`) resmi MemurBank logosuyla güncellendi
+- [x] **[IOS INFO.PLIST]** `ios/Runner/Info.plist` içerisinde `CFBundleDisplayName` ve `CFBundleName` değerleri `MemurBank` olarak birleştirildi; `NSCameraUsageDescription` ve `NSLocalNetworkUsageDescription` izin açıklamaları eklendi
+
 <!--
 YENİ ADIM EKLERKEN KULLANILACAK ŞABLON (Dosyanın en altına ekleyiniz):
 
-## [ADIM-06 | YYYY-AA-GG SS:DD] — <Yapılan İşlemin Kısa Başlığı>
+## [ADIM-08 | YYYY-AA-GG SS:DD] — <Yapılan İşlemin Kısa Başlığı>
 - [x] <Yapılan değişiklik veya eklenen özellik 1>
 - [x] <Yapılan değişiklik veya eklenen özellik 2>
 -->
+
+[ADIM-08 | 2026-11-10 22:19]
+- Ne yapıldı:
+  1. `.env` dosyasındaki `SUPABASE_URL` değeri web dashboard adresinden (`https://supabase.com/dashboard/project/bgivxmjhhrwlpxnoxwrb`) gerçek Supabase REST API uç noktasına (`https://bgivxmjhhrwlpxnoxwrb.supabase.co`) güncellendi.
+  2. `lib/services/supabase_service.dart` içerisine `SupabaseService.normalizeSupabaseUrl()` yardımcı metodu eklendi ve `lib/main.dart` içerisinde kullanıldı; böylece `.env` içine yanlışlıkla dashboard URL'si girilse bile proje ID'si ayıklanarak otomatik olarak `https://<proje_id>.supabase.co` adresine dönüştürülmesi sağlandı.
+  3. `SupabaseService` (`_isUsingFallback = false`) ve `BankState` (`this.isUsingFallback = false`) içerisindeki varsayılan fallback durumu `false` olarak değiştirildi. Böylece `FallbackModeStickyBanner` varsayılan olarak gizli tutuldu ve yalnızca gerçek bir bağlantı/sorgu hatası yaşanıp yerel fallback verilerine düşüldüğünde (`isUsingFallback == true`) gösterilmesi sağlandı.
+  4. `fetchAdvanceRequests()` metodundaki olası bir tablo/sorgu hatasının, başarılı olan `fetchProfiles()` bağlantısının `_isUsingFallback = false` durumunu ezmemesi sağlandı.
+  5. `BankCubit.completeSplash()` güncellenerek, 3 saniyelik `SplashScreen` tamamlanıp `LoginScreen` ekranına geçildiği anda canlı Supabase bağlantısı aktifse (`!state.isUsingFallback`) yeşil onay `SnackBar`'ının (`"✓ Supabase Canlı Veritabanı Bağlantısı Kuruldu!..."`) doğrudan `LoginScreen`'de gösterilmesi sağlandı.
+  6. `yapilacaklar.md` içerisindeki tüm maddeler (`1.1`, `1.2`, `2.1`, `2.2`, `3.1`) `[x]` olarak işaretlendi.
+- Neden yapıldı:
+  Kullanıcının Login sayfasında dahi "Yerel Fallback Modu Aktif" uyarısı almasının kök nedenini (`.env` içindeki Dashboard URL'si ve `isUsingFallback` varsayılan değerinin `true` olması) kalıcı olarak çözmek ve `FallbackModeStickyBanner`'ın yalnızca gerçek fallback durumunda görünmesini sağlamak için yapıldı.
+
+[ADIM-09 | 2026-11-10 22:40]
+- Ne yapıldı:
+  1. `lib/screens/home_screen.dart` içerisinde yorum satırına kaymış olan `if (state.activeProfile.isAdminOrManager)` koşulu gerçek kod satırına alındı ve `lib/stitch_ui/admin_dashboard_card.dart` içine de güvenlik kontrolü eklendi; böylece standart memur (`user`) rolünde Teftiş/Mutemetlik kartının görünmesi engellendi.
+  2. `lib/bloc/bank_cubit.dart` ve `lib/widgets/officer_card_widget.dart` güncellenerek Tanrı Modu (God Mode) yetkileri yalnızca `admin` (Başmüfettiş) rolüne sınırlandırıldı; `manager` (Kurum Mutemedi) memur kartına tıkladığında salt-okunur "Kurum Mutemetliği Sicil & Maaş Özeti" penceresi gösterildi.
+  3. Başmüfettişin (`admin`) kendi hesabının veya başka bir `admin` hesabının rolünü düşürmesi / dondurması (Self-Lockout) hem Cubit hem UI seviyesinde engellendi.
+  4. `BankCubit.addNewOfficer()` metodu `Future<bool>` dönecek şekilde güncellendi, mükerrer `kurum_sicil_no` kontrolü eklendi ve `_AddNewOfficerBottomSheet`'in yalnızca doğrulama başarılıysa kapanması sağlandı.
+  5. `BankCubit.submitMoneyTransfer()` içerisine alıcı memur bloke (`recipient.isFrozen`) kontrolü, `fastInstantConfirmEnabled` şalter kontrolü ve hem gönderici (`-`) hem alıcı (`+`) için çift yönlü `TransactionRecord` dekont üretimi eklendi.
+  6. `_buildDefaultTransactions()` içine 4 varsayılan memurun tamamı için kendi maaş/işlem dekontları eklendi ve `activeUserTransactions` getter'ının başka memurun dekontlarını sızdırması önlendi.
+  7. `lib/stitch_ui/filter_bar_widget.dart` üzerindeki filtre çip sayaçları `state.roleScopedRequests` ile aktif kullanıcının yetki kapsamına göre birebir doğru sayıları gösterecek şekilde düzeltildi.
+  8. Kullanılmayan 0 byte'lık `lib/screens/main_shell.dart` ve `lib/screens/transfer_advance_screen.dart` dosyaları silindi.
+  9. `ProfileModel.formatCurrency()` merkezi para formatlayıcısı eklendi; tüm ekranlarda klavye `textInputAction` / `onFieldSubmitted` desteği, `ConnectionStatusBadge` (`Canlı Bulut` / `Yerel Demo`), Yönetim Paneli 1. sekmesinde bekleyen talepleri üstte gösteren sıralama (`sortedRequestsForManagement`) ve Veritabanı Sıfırlama butonu için onay diyaloğu (`AlertDialog`) devreye alındı.
+- Neden yapıldı:
+  Kapsamlı proje denetiminde ("Şeytanın Avukatı" incelemesi) tespit edilen tüm mantıksal/yetki açıklarını kapatmak ve kullanıcı arayüzünü daha erişilebilir, tutarlı ve anlaşılır hale getirmek için yapıldı.

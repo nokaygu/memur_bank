@@ -6,6 +6,7 @@ import '../bloc/theme_cubit.dart';
 import '../constants/app_paddings.dart';
 import '../constants/app_strings.dart';
 import '../theme/app_theme.dart';
+import '../widgets/role_switcher_bar.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
 import 'management_panel_screen.dart';
@@ -16,6 +17,7 @@ import 'transfer_screen.dart';
 /// Yöntem A & Yöntem C + Splash & Login Yönlendirici:
 /// - `isSplashVisible == true` ise `SplashScreen` gösterir.
 /// - `isAuthenticated == false` ise `LoginScreen` gösterir.
+/// - `isUsingFallback == true` ise en üstte kalıcı `FallbackModeStickyBanner` gösterir.
 /// - Oturum açıkken üst barda "Rol Değiştir (Test)" + Tema + Oturumu Kapat butonları ve
 ///   alt barda role göre 3 (`user`) veya 4 (`manager` / `admin` -> `Teftiş/Yönetim`) dinamik sekme gösterir.
 class MainShellScreen extends StatelessWidget {
@@ -190,14 +192,21 @@ class MainShellScreen extends StatelessWidget {
               ),
             ],
           ),
-          body: Stack(
+          body: Column(
             children: [
-              screens[activeIndex],
-              if (state.isLoading)
-                const Align(
-                  alignment: Alignment.topCenter,
-                  child: LinearProgressIndicator(),
+              const FallbackModeStickyBanner(),
+              Expanded(
+                child: Stack(
+                  children: [
+                    screens[activeIndex],
+                    if (state.isLoading)
+                      const Align(
+                        alignment: Alignment.topCenter,
+                        child: LinearProgressIndicator(),
+                      ),
+                  ],
                 ),
+              ),
             ],
           ),
           bottomNavigationBar: BottomNavigationBar(

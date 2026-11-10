@@ -35,10 +35,13 @@ class BankState {
   final List<TransactionRecord> transactions;
   final ProfileModel activeProfile;
 
-  // Açılış (Splash) ve Kimlik Doğrulama (Authentication) Durumu
+  // Açılış (Splash), Kimlik Doğrulama (Authentication) ve Supabase/Fallback Durumu
   final bool isSplashVisible;
   final bool isAuthenticated;
+  final bool isUsingFallback;
   final String loginSicilInput;
+  final String loginPasswordInput;
+  final bool isLoginPasswordObscured;
 
   // Navigasyon ve Filtreler
   final int bottomNavIndex;
@@ -70,6 +73,7 @@ class BankState {
   // Yeni Memur Ekleme Form Alanları (Tanrı Modu)
   final String newOfficerName;
   final String newOfficerSicilNo;
+  final String newOfficerPassword;
   final String newOfficerUnvan;
   final String newOfficerBalance;
 
@@ -80,7 +84,11 @@ class BankState {
     required this.activeProfile,
     this.isSplashVisible = false,
     this.isAuthenticated = true,
-    this.loginSicilInput = 'MEB-1042',
+    // Varsayılan olarak false başlar; yalnızca gerçekten Fallback'e düşüldüğünde true olur!
+    this.isUsingFallback = false,
+    this.loginSicilInput = '',
+    this.loginPasswordInput = '',
+    this.isLoginPasswordObscured = true,
     this.bottomNavIndex = 0,
     this.managementTabIndex = 0,
     this.selectedFilter = 'all',
@@ -101,9 +109,10 @@ class BankState {
     this.kepNotificationsEnabled = true,
     this.fastInstantConfirmEnabled = true,
     this.newOfficerName = '',
-    this.newOfficerSicilNo = 'KAMU-2026',
-    this.newOfficerUnvan = 'Uzman Tabip',
-    this.newOfficerBalance = '55000',
+    this.newOfficerSicilNo = '',
+    this.newOfficerPassword = '',
+    this.newOfficerUnvan = '',
+    this.newOfficerBalance = '',
   });
 
   factory BankState.initial({
@@ -114,6 +123,7 @@ class BankState {
       id: '11111111-1111-1111-1111-111111111111',
       fullName: 'Ahmet Yılmaz',
       kurumSicilNo: 'MEB-1042',
+      password: '123',
       unvan: 'Öğretmen',
       balance: 42500.0,
       role: 'user',
@@ -126,12 +136,14 @@ class BankState {
       activeProfile: defaultUser,
       isSplashVisible: showSplash,
       isAuthenticated: isAuthenticated,
+      isUsingFallback: false,
     );
   }
 
   static List<TransactionRecord> _buildDefaultTransactions() {
     final now = DateTime.now();
     return [
+      // Ahmet Yılmaz (11111111-...)
       TransactionRecord(
         id: 'tx-101',
         userId: '11111111-1111-1111-1111-111111111111',
@@ -157,7 +169,7 @@ class BankState {
       TransactionRecord(
         id: 'tx-103',
         userId: '11111111-1111-1111-1111-111111111111',
-        title: 'FAST Transfer: Ayşe Demir',
+        title: 'FAST Gönderim: Ayşe Demir',
         subtitle: 'EGM-8831 • Ortak Lojman Aidatı',
         category: 'FAST Transfer',
         referenceCode: 'FAST-773190',
@@ -165,30 +177,84 @@ class BankState {
         isIncoming: false,
         createdAt: now.subtract(const Duration(days: 7)),
       ),
+      // Ayşe Demir (22222222-...)
+      TransactionRecord(
+        id: 'tx-201',
+        userId: '22222222-2222-2222-2222-222222222222',
+        title: 'Hazine Kamu Maaş Ödemesi',
+        subtitle: 'T.C. İçişleri Bakanlığı (EGM) • Bordro: 2026/10',
+        category: 'Maaş Yatışı',
+        referenceCode: 'MB-KEP-908550',
+        amount: 51000.0,
+        isIncoming: true,
+        createdAt: now.subtract(const Duration(days: 2)),
+      ),
+      TransactionRecord(
+        id: 'tx-202',
+        userId: '22222222-2222-2222-2222-222222222222',
+        title: 'FAST Gelen Transfer: Ahmet Yılmaz',
+        subtitle: 'MEB-1042 • Ortak Lojman Aidatı',
+        category: 'FAST Transfer',
+        referenceCode: 'FAST-773190',
+        amount: 1250.0,
+        isIncoming: true,
+        createdAt: now.subtract(const Duration(days: 7)),
+      ),
+      // Mehmet Kaya (33333333-...)
+      TransactionRecord(
+        id: 'tx-301',
+        userId: '33333333-3333-3333-3333-333333333333',
+        title: 'Hazine Kamu Maaş Ödemesi',
+        subtitle: 'T.C. Hazine ve Maliye Bakanlığı • Bordro: 2026/10',
+        category: 'Maaş Yatışı',
+        referenceCode: 'MB-KEP-908610',
+        amount: 64000.0,
+        isIncoming: true,
+        createdAt: now.subtract(const Duration(days: 2)),
+      ),
+      // Kemal Bey (44444444-...)
+      TransactionRecord(
+        id: 'tx-401',
+        userId: '44444444-4444-4444-4444-444444444444',
+        title: 'Hazine Başmüfettişlik Maaş & Kıdem Ödemesi',
+        subtitle: 'T.C. Hazine Teftiş Kurulu Başkanlığı • Bordro: 2026/10',
+        category: 'Maaş Yatışı',
+        referenceCode: 'MB-KEP-908700',
+        amount: 95000.0,
+        isIncoming: true,
+        createdAt: now.subtract(const Duration(days: 2)),
+      ),
     ];
   }
 
+  /// Aktif kullanıcının rol kapsamına giren tüm avans/kredi talepleri
+  List<AdvanceRequestModel> get roleScopedRequests =>
+      activeProfile.isAdminOrManager
+      ? requests
+      : requests.where((r) => r.userId == activeProfile.id).toList();
+
   /// Ana ekranda seçili filtreye ve aktif role göre gösterilecek avans/kredi talepleri
   List<AdvanceRequestModel> get filteredRequests {
-    final roleScoped = activeProfile.isAdminOrManager
-        ? requests
-        : requests.where((r) => r.userId == activeProfile.id).toList();
-
+    final roleScoped = roleScopedRequests;
     if (selectedFilter == 'all') {
       return roleScoped;
     }
     return roleScoped.where((r) => r.status == selectedFilter).toList();
   }
 
-  /// Aktif kullanıcı veya yönetici için hesap hareketleri listesi
+  /// Yönetim Paneli 1. Sekmesinde bekleyen talepleri en üstte gösteren sıralı liste
+  List<AdvanceRequestModel> get sortedRequestsForManagement {
+    final pending = requests.where((r) => r.isPending).toList();
+    final decided = requests.where((r) => !r.isPending).toList();
+    return [...pending, ...decided];
+  }
+
+  /// Aktif kullanıcı veya yönetici için hesap hareketleri listesi (Başka memurun dekontunu sızdırmaz)
   List<TransactionRecord> get activeUserTransactions {
     if (activeProfile.isAdminOrManager) {
       return transactions;
     }
-    final own = transactions
-        .where((t) => t.userId == activeProfile.id)
-        .toList();
-    return own.isNotEmpty ? own : transactions;
+    return transactions.where((t) => t.userId == activeProfile.id).toList();
   }
 
   /// Bekleyen talep listesi (`status == 'bekliyor'`)
@@ -269,7 +335,10 @@ class BankState {
     ProfileModel? activeProfile,
     bool? isSplashVisible,
     bool? isAuthenticated,
+    bool? isUsingFallback,
     String? loginSicilInput,
+    String? loginPasswordInput,
+    bool? isLoginPasswordObscured,
     int? bottomNavIndex,
     int? managementTabIndex,
     String? selectedFilter,
@@ -292,6 +361,7 @@ class BankState {
     bool? fastInstantConfirmEnabled,
     String? newOfficerName,
     String? newOfficerSicilNo,
+    String? newOfficerPassword,
     String? newOfficerUnvan,
     String? newOfficerBalance,
   }) {
@@ -302,7 +372,11 @@ class BankState {
       activeProfile: activeProfile ?? this.activeProfile,
       isSplashVisible: isSplashVisible ?? this.isSplashVisible,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
+      isUsingFallback: isUsingFallback ?? this.isUsingFallback,
       loginSicilInput: loginSicilInput ?? this.loginSicilInput,
+      loginPasswordInput: loginPasswordInput ?? this.loginPasswordInput,
+      isLoginPasswordObscured:
+          isLoginPasswordObscured ?? this.isLoginPasswordObscured,
       bottomNavIndex: bottomNavIndex ?? this.bottomNavIndex,
       managementTabIndex: managementTabIndex ?? this.managementTabIndex,
       selectedFilter: selectedFilter ?? this.selectedFilter,
@@ -328,6 +402,7 @@ class BankState {
           fastInstantConfirmEnabled ?? this.fastInstantConfirmEnabled,
       newOfficerName: newOfficerName ?? this.newOfficerName,
       newOfficerSicilNo: newOfficerSicilNo ?? this.newOfficerSicilNo,
+      newOfficerPassword: newOfficerPassword ?? this.newOfficerPassword,
       newOfficerUnvan: newOfficerUnvan ?? this.newOfficerUnvan,
       newOfficerBalance: newOfficerBalance ?? this.newOfficerBalance,
     );
@@ -336,6 +411,7 @@ class BankState {
 
 class BankCubit extends Cubit<BankState> {
   final SupabaseService _supabaseService;
+  bool _hasAnnouncedLiveConnection = false;
 
   BankCubit(
     this._supabaseService, {
@@ -348,10 +424,14 @@ class BankCubit extends Cubit<BankState> {
          ),
        );
 
-  Future<void> loadInitialData({String? keepProfileId}) async {
+  Future<void> loadInitialData({
+    String? keepProfileId,
+    bool announceConnection = false,
+  }) async {
     emit(state.copyWith(isLoading: true, clearFeedback: true));
     final profiles = await _supabaseService.fetchProfiles();
     final requests = await _supabaseService.fetchAdvanceRequests();
+    final usingFallback = _supabaseService.isUsingFallback;
 
     final targetId = keepProfileId ?? state.activeProfile.id;
     final active = profiles.firstWhere(
@@ -369,36 +449,86 @@ class BankCubit extends Cubit<BankState> {
         ? 0
         : state.bottomNavIndex;
 
+    String? connectionFeedback;
+    bool isError = false;
+    // Splash ekranı açık değilken canlı bağlantı kurulduysa hemen SnackBar göster;
+    // Splash açıkken bittiyse completeSplash() çağrıldığında LoginScreen üzerinde gösterilecek.
+    if (!state.isSplashVisible) {
+      if (!usingFallback &&
+          (!_hasAnnouncedLiveConnection || announceConnection)) {
+        _hasAnnouncedLiveConnection = true;
+        connectionFeedback = '✓ Supabase Canlı Veritabanı Bağlantısı Kuruldu! Tüm işlemler bulut üzerinde senkronize ediliyor.';
+      } else if (usingFallback && announceConnection) {
+        connectionFeedback = 'Supabase bağlantısı kurulamadı. Yerel Fallback (Demo) modu aktif olarak devam ediyor.';
+        isError = true;
+      }
+    }
+
     emit(
       state.copyWith(
         profiles: profiles,
         requests: requests,
         activeProfile: active,
+        isUsingFallback: usingFallback,
         selectedRecipientId: validRecipientId,
         bottomNavIndex: safeNavIndex,
         isLoading: false,
+        feedbackMessage: connectionFeedback,
+        isErrorFeedback: isError,
       ),
     );
+  }
+
+  /// Fallback Banner'daki "Yeniden Bağlan" butonuyla bağlantıyı tekrar dener.
+  Future<void> retrySupabaseConnection() async {
+    await loadInitialData(announceConnection: true);
   }
 
   // Splash & Kimlik Doğrulama (Authentication) Metodları
   void completeSplash() {
     if (!state.isSplashVisible) return;
-    emit(state.copyWith(isSplashVisible: false, clearFeedback: true));
+    String? splashEndFeedback;
+    if (!state.isUsingFallback && !_hasAnnouncedLiveConnection) {
+      _hasAnnouncedLiveConnection = true;
+      splashEndFeedback = '✓ Supabase Canlı Veritabanı Bağlantısı Kuruldu! Tüm işlemler bulut üzerinde senkronize ediliyor.';
+    }
+    emit(
+      state.copyWith(
+        isSplashVisible: false,
+        feedbackMessage: splashEndFeedback,
+        clearFeedback: splashEndFeedback == null,
+        isErrorFeedback: false,
+      ),
+    );
   }
 
   void setLoginSicilInput(String value) {
     emit(state.copyWith(loginSicilInput: value, clearFeedback: true));
   }
 
-  /// Kurum Sicil No veya Ad Soyad ile Supabase `profiles` tablosundaki gerçek memuru doğrular.
-  /// Eşleşme yoksa hatalı giriş yapmaz; kırmızı uyarı SnackBar'ı gösterir.
+  void setLoginPasswordInput(String value) {
+    emit(state.copyWith(loginPasswordInput: value, clearFeedback: true));
+  }
+
+  void toggleLoginPasswordVisibility() {
+    emit(
+      state.copyWith(
+        isLoginPasswordObscured: !state.isLoginPasswordObscured,
+        clearFeedback: true,
+      ),
+    );
+  }
+
+  /// Kurum Sicil No ve Giriş Şifresi (`password`) ile Supabase `profiles` tablosundaki gerçek memuru doğrular.
   void loginWithCredentials() {
     final sicilQuery = state.loginSicilInput.trim().toLowerCase();
-    if (sicilQuery.isEmpty) {
+    final passwordInput = state.loginPasswordInput.trim();
+
+    if (sicilQuery.isEmpty || passwordInput.isEmpty) {
       emit(
         state.copyWith(
-          feedbackMessage: 'Geçersiz Kurum Sicil No! Lütfen kayıtlı bir sicil numarası (Örn: MEB-1042, EGM-8831, MAL-0092, MUF-0001) giriniz.',
+          feedbackMessage:
+              'Lütfen Kurum Sicil No ve Giriş Şifrenizi eksiksiz giriniz.',
           isErrorFeedback: true,
         ),
       );
@@ -414,14 +544,26 @@ class BankCubit extends Cubit<BankState> {
     if (matchingIndex == -1) {
       emit(
         state.copyWith(
-          feedbackMessage: 'Geçersiz Kurum Sicil No! Lütfen kayıtlı bir sicil numarası (Örn: MEB-1042, EGM-8831, MAL-0092, MUF-0001) giriniz.',
+          feedbackMessage: 'Geçersiz Kurum Sicil No! Lütfen kayıtlı bir sicil numarası (MEB-1042, EGM-8831, MAL-0092, MUF-0001) giriniz.',
           isErrorFeedback: true,
         ),
       );
       return;
     }
 
-    loginAsProfile(state.profiles[matchingIndex]);
+    final targetProfile = state.profiles[matchingIndex];
+    if (targetProfile.password != passwordInput) {
+      emit(
+        state.copyWith(
+          feedbackMessage:
+              'Hatalı Giriş Şifresi! Lütfen şifrenizi kontrol ediniz.',
+          isErrorFeedback: true,
+        ),
+      );
+      return;
+    }
+
+    loginAsProfile(targetProfile);
   }
 
   void loginAsProfile(ProfileModel profile) {
@@ -432,6 +574,7 @@ class BankCubit extends Cubit<BankState> {
         isAuthenticated: true,
         activeProfile: profile,
         loginSicilInput: profile.kurumSicilNo,
+        loginPasswordInput: '',
         bottomNavIndex: 0,
         selectedRecipientId: recipients.isNotEmpty ? recipients.first.id : '',
         feedbackMessage:
@@ -446,7 +589,8 @@ class BankCubit extends Cubit<BankState> {
       state.copyWith(
         isAuthenticated: false,
         bottomNavIndex: 0,
-        loginSicilInput: state.activeProfile.kurumSicilNo,
+        loginSicilInput: '',
+        loginPasswordInput: '',
         formPresetVersion: state.formPresetVersion + 1,
         feedbackMessage:
             '${state.activeProfile.fullName} oturumu güvenli şekilde kapatıldı.',
@@ -597,6 +741,10 @@ class BankCubit extends Cubit<BankState> {
     emit(state.copyWith(newOfficerSicilNo: value, clearFeedback: true));
   }
 
+  void setNewOfficerPassword(String value) {
+    emit(state.copyWith(newOfficerPassword: value, clearFeedback: true));
+  }
+
   void setNewOfficerUnvan(String value) {
     emit(state.copyWith(newOfficerUnvan: value, clearFeedback: true));
   }
@@ -636,7 +784,6 @@ class BankCubit extends Cubit<BankState> {
       state.copyWith(
         isAuthenticated: true,
         activeProfile: target,
-        loginSicilInput: target.kurumSicilNo,
         selectedRecipientId: recipients.isNotEmpty ? recipients.first.id : '',
         bottomNavIndex: safeNavIndex,
         feedbackMessage:
@@ -646,13 +793,23 @@ class BankCubit extends Cubit<BankState> {
     );
   }
 
-  /// Memurlar arası para transferi
+  /// Memurlar arası para transferi (Gönderici/Alıcı bloke kontrolü, FAST yetki kontrolü ve çift yönlü dekont)
   Future<void> submitMoneyTransfer() async {
     final sender = state.activeProfile;
     if (sender.isFrozen) {
       emit(
         state.copyWith(
           feedbackMessage: 'Hesabınız Başmüfettişlik tarafından dondurulmuştur! Para transferi yapılamaz.',
+          isErrorFeedback: true,
+        ),
+      );
+      return;
+    }
+
+    if (!state.fastInstantConfirmEnabled) {
+      emit(
+        state.copyWith(
+          feedbackMessage: 'FAST Kolay Adres transfer yetkiniz kapalıdır! Lütfen Profil sekmesinden FAST transfer yetkisini aktifleştiriniz.',
           isErrorFeedback: true,
         ),
       );
@@ -698,6 +855,17 @@ class BankCubit extends Cubit<BankState> {
       return;
     }
 
+    if (recipient.isFrozen) {
+      emit(
+        state.copyWith(
+          feedbackMessage:
+              'Alıcı memur (${recipient.fullName}) hesabı MASAK / Teftiş Kurulu tarafından dondurulduğu için bu hesaba transfer yapılamaz!',
+          isErrorFeedback: true,
+        ),
+      );
+      return;
+    }
+
     emit(state.copyWith(isLoading: true, clearFeedback: true));
     await _supabaseService.updateProfileBalance(
       sender.id,
@@ -711,11 +879,15 @@ class BankCubit extends Cubit<BankState> {
     final now = DateTime.now();
     final refCode =
         'FAST-${now.millisecondsSinceEpoch.toString().substring(7)}';
+    final note = state.transferNoteInput.trim().isEmpty
+        ? 'Kamu Personeli FAST Transferi'
+        : state.transferNoteInput.trim();
+
     final outgoingTx = TransactionRecord(
-      id: 'tx-${now.millisecondsSinceEpoch}',
+      id: 'tx-out-${now.millisecondsSinceEpoch}',
       userId: sender.id,
       title: 'FAST Gönderim: ${recipient.fullName}',
-      subtitle: '${recipient.kurumSicilNo} • ${state.transferNoteInput}',
+      subtitle: '${recipient.kurumSicilNo} • $note',
       category: 'FAST Transfer',
       referenceCode: refCode,
       amount: amount,
@@ -723,13 +895,25 @@ class BankCubit extends Cubit<BankState> {
       createdAt: now,
     );
 
+    final incomingTx = TransactionRecord(
+      id: 'tx-in-${now.millisecondsSinceEpoch}',
+      userId: recipient.id,
+      title: 'FAST Gelen Transfer: ${sender.fullName}',
+      subtitle: '${sender.kurumSicilNo} • $note',
+      category: 'FAST Transfer',
+      referenceCode: refCode,
+      amount: amount,
+      isIncoming: true,
+      createdAt: now,
+    );
+
     await loadInitialData(keepProfileId: sender.id);
 
     emit(
       state.copyWith(
-        transactions: [outgoingTx, ...state.transactions],
+        transactions: [outgoingTx, incomingTx, ...state.transactions],
         feedbackMessage:
-            '${recipient.fullName} (${recipient.kurumSicilNo}) hesabına ${amount.toStringAsFixed(0)} TL FAST transferi tamamlandı.',
+            '${recipient.fullName} (${recipient.kurumSicilNo}) hesabına ${ProfileModel.formatCurrency(amount)} FAST transferi tamamlandı.',
         isErrorFeedback: false,
       ),
     );
@@ -779,7 +963,7 @@ class BankCubit extends Cubit<BankState> {
     emit(
       state.copyWith(
         feedbackMessage:
-            '${amount.toStringAsFixed(0)} TL tutarındaki Maaş Avansı ($planLabel) talebiniz Mutemetlik onayına iletildi.',
+            '${ProfileModel.formatCurrency(amount)} tutarındaki Maaş Avansı ($planLabel) talebiniz Mutemetlik onayına iletildi.',
         isErrorFeedback: false,
       ),
     );
@@ -834,7 +1018,7 @@ class BankCubit extends Cubit<BankState> {
       state.copyWith(
         transactions: updatedTx,
         feedbackMessage: approve
-            ? '${request.fullName} talebi ONAYLANDI (+${request.amount.toStringAsFixed(0)} TL bakiyesine eklendi).'
+            ? '${request.fullName} talebi ONAYLANDI (+${ProfileModel.formatCurrency(request.amount)} bakiyesine eklendi).'
             : '${request.fullName} talebi REDDEDİLDİ.',
         isErrorFeedback: !approve,
       ),
@@ -891,6 +1075,16 @@ class BankCubit extends Cubit<BankState> {
     required double amount,
     required String label,
   }) async {
+    if (!state.activeProfile.isAdmin) {
+      emit(
+        state.copyWith(
+          feedbackMessage: 'Yetki Hatası: Tanrı Modu para aktarım işlemleri yalnızca Bakanlık Başmüfettişi (Admin) yetkisiyle yapılabilir.',
+          isErrorFeedback: true,
+        ),
+      );
+      return;
+    }
+
     emit(state.copyWith(isLoading: true, clearFeedback: true));
     await _supabaseService.updateProfileBalance(
       officer.id,
@@ -917,7 +1111,7 @@ class BankCubit extends Cubit<BankState> {
       state.copyWith(
         transactions: [newTx, ...state.transactions],
         feedbackMessage:
-            '${officer.fullName} hesabına +${amount.toStringAsFixed(0)} TL $label yatırıldı.',
+            '${officer.fullName} hesabına +${ProfileModel.formatCurrency(amount)} $label yatırıldı.',
         isErrorFeedback: false,
       ),
     );
@@ -925,6 +1119,26 @@ class BankCubit extends Cubit<BankState> {
 
   /// Admin (Tanrı Modu): Memurun Rol/Unvanını değiştir (Müdür Yap / Memur Yap)
   Future<void> toggleOfficerManagerRole(ProfileModel officer) async {
+    if (!state.activeProfile.isAdmin) {
+      emit(
+        state.copyWith(
+          feedbackMessage: 'Yetki Hatası: Rol ve unvan atama yetkisi yalnızca Bakanlık Başmüfettişi (Admin) rolüne aittir.',
+          isErrorFeedback: true,
+        ),
+      );
+      return;
+    }
+
+    if (officer.id == state.activeProfile.id || officer.isAdmin) {
+      emit(
+        state.copyWith(
+          feedbackMessage: 'Güvenlik Kuralı: Bakanlık Başmüfettişi (Admin) hesabının rolü düşürülemez!',
+          isErrorFeedback: true,
+        ),
+      );
+      return;
+    }
+
     emit(state.copyWith(isLoading: true, clearFeedback: true));
     final makeManager = officer.role == 'user';
     final newRole = makeManager ? 'manager' : 'user';
@@ -950,6 +1164,26 @@ class BankCubit extends Cubit<BankState> {
 
   /// Admin (Tanrı Modu): Şüpheli Hesabı Dondur / Bloke Kaldır
   Future<void> toggleOfficerFreeze(ProfileModel officer) async {
+    if (!state.activeProfile.isAdmin) {
+      emit(
+        state.copyWith(
+          feedbackMessage: 'Yetki Hatası: MASAK / Teftiş hesap dondurma yetkisi yalnızca Bakanlık Başmüfettişi (Admin) rolüne aittir.',
+          isErrorFeedback: true,
+        ),
+      );
+      return;
+    }
+
+    if (officer.id == state.activeProfile.id || officer.isAdmin) {
+      emit(
+        state.copyWith(
+          feedbackMessage: 'Güvenlik Kuralı: Bakanlık Başmüfettişi kendi hesabını veya başka bir Başmüfettişi donduramaz!',
+          isErrorFeedback: true,
+        ),
+      );
+      return;
+    }
+
     emit(state.copyWith(isLoading: true, clearFeedback: true));
     final nextFrozen = !officer.isFrozen;
     await _supabaseService.toggleFreezeStatus(officer.id, nextFrozen);
@@ -965,30 +1199,55 @@ class BankCubit extends Cubit<BankState> {
     );
   }
 
-  /// Admin (Tanrı Modu): Sisteme Yeni Memur Ekle ve Formu Temizle
-  Future<void> addNewOfficer() async {
-    final name = state.newOfficerName.trim();
-    final sicil = state.newOfficerSicilNo.trim();
-    final unvan = state.newOfficerUnvan.trim();
-    final balance =
-        double.tryParse(state.newOfficerBalance.replaceAll(',', '.').trim()) ??
-        45000.0;
-
-    if (name.isEmpty || sicil.isEmpty) {
+  /// Admin (Tanrı Modu): Sisteme Yeni Memur Ekle ve Formu Temizle (Doğrulama sonucu bool döner)
+  Future<bool> addNewOfficer() async {
+    if (!state.activeProfile.isAdmin) {
       emit(
         state.copyWith(
-          feedbackMessage:
-              'Yeni memur için Ad Soyad ve Kurum Sicil No zorunludur.',
+          feedbackMessage: 'Yetki Hatası: Yeni kamu personeli tanımlama yetkisi yalnızca Bakanlık Başmüfettişi (Admin) rolüne aittir.',
           isErrorFeedback: true,
         ),
       );
-      return;
+      return false;
+    }
+
+    final name = state.newOfficerName.trim();
+    final sicil = state.newOfficerSicilNo.trim();
+    final password = state.newOfficerPassword.trim();
+    final unvan = state.newOfficerUnvan.trim();
+    final balance =
+        double.tryParse(state.newOfficerBalance.replaceAll(',', '.').trim()) ??
+        0.0;
+
+    if (name.isEmpty || sicil.isEmpty || password.isEmpty) {
+      emit(
+        state.copyWith(
+          feedbackMessage: 'Yeni memur için Ad Soyad, Kurum Sicil No ve Giriş Şifresi zorunludur.',
+          isErrorFeedback: true,
+        ),
+      );
+      return false;
+    }
+
+    final duplicateExists = state.profiles.any(
+      (p) => p.kurumSicilNo.toLowerCase() == sicil.toLowerCase(),
+    );
+    if (duplicateExists) {
+      emit(
+        state.copyWith(
+          feedbackMessage:
+              'Bu Kurum Sicil Numarası ($sicil) sistemde zaten kayıtlı! Lütfen benzersiz bir sicil numarası giriniz.',
+          isErrorFeedback: true,
+        ),
+      );
+      return false;
     }
 
     emit(state.copyWith(isLoading: true, clearFeedback: true));
     await _supabaseService.createOfficerProfile(
       fullName: name,
       kurumSicilNo: sicil,
+      password: password,
       unvan: unvan.isEmpty ? 'Memur' : unvan,
       initialBalance: balance,
     );
@@ -997,15 +1256,17 @@ class BankCubit extends Cubit<BankState> {
     emit(
       state.copyWith(
         newOfficerName: '',
-        newOfficerSicilNo: 'KAMU-2026',
-        newOfficerUnvan: 'Uzman Tabip',
-        newOfficerBalance: '55000',
+        newOfficerSicilNo: '',
+        newOfficerPassword: '',
+        newOfficerUnvan: '',
+        newOfficerBalance: '',
         formPresetVersion: state.formPresetVersion + 1,
         feedbackMessage:
             'Yeni kamu personeli "$name ($sicil)" sisteme başarıyla kaydedildi.',
         isErrorFeedback: false,
       ),
     );
+    return true;
   }
 
   /// Yöntem C: Admin Key ile `reset_memur_bank` RPC çağrısı ve demo verileri sıfırlama.
@@ -1019,8 +1280,8 @@ class BankCubit extends Cubit<BankState> {
       state.copyWith(
         transactions: BankState._buildDefaultTransactions(),
         feedbackMessage: remoteReset
-            ? 'Supabase reset_memur_bank() RPC çalıştırıldı ve 4 memur + 2 avans demo verisi kuruldu!'
-            : 'Demo veritabanı (4 memur + 2 bekleyen avans) varsayılan başlangıç durumuna sıfırlandı!',
+            ? '✓ Supabase reset_memur_bank() RPC çalıştırıldı ve 4 memur + 2 avans demo verisi kuruldu!'
+            : 'Demo veritabanı (4 memur + 2 bekleyen avans) yerel Fallback üzerinde sıfırlandı!',
         isErrorFeedback: false,
       ),
     );

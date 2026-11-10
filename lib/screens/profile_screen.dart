@@ -6,6 +6,7 @@ import '../bloc/bank_cubit.dart';
 import '../bloc/theme_cubit.dart';
 import '../constants/app_paddings.dart';
 import '../constants/app_strings.dart';
+import '../models/profile_model.dart';
 import '../theme/app_theme.dart';
 import '../widgets/role_switcher_bar.dart';
 
@@ -105,7 +106,7 @@ class ProfileScreen extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                '${officer.balance.toStringAsFixed(0)} ₺',
+                                ProfileModel.formatCurrency(officer.balance),
                                 style: theme.textTheme.titleSmall?.copyWith(
                                   color: colorScheme.primary,
                                   fontWeight: FontWeight.w900,
@@ -191,12 +192,24 @@ class _ProfileIdentityAndSettingsSection extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'T.C. KAMU PERSONELİ DİJİTAL KİMLİĞİ',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: colorScheme.secondaryContainer,
-                                  fontWeight: FontWeight.w800,
-                                ),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      'T.C. KAMU PERSONELİ DİJİTAL KİMLİĞİ',
+                                      style: theme.textTheme.labelSmall
+                                          ?.copyWith(
+                                            color:
+                                                colorScheme.secondaryContainer,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const ConnectionStatusBadge(),
+                                ],
                               ),
                               AppPaddings.vGapXxs,
                               Text(

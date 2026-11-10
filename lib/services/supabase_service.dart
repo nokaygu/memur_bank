@@ -10,6 +10,33 @@ import '../models/profile_model.dart';
 /// birebir çalışan yerel Fallback (Yedek) veri mekanizması içerir.
 class SupabaseService {
   bool _isSupabaseInitialized = false;
+  // Varsayılan olarak false başlar; yalnızca gerçekten Fallback'e düşüldüğünde true olur!
+  bool _isUsingFallback = false;
+  String? _lastConnectionError;
+
+  /// Uygulamanın şu an yerel Fallback (demo) modunda mı yoksa canlı Supabase üzerinde mi çalıştığını döner.
+  bool get isUsingFallback => _isUsingFallback;
+
+  /// Son bağlantı hatası varsa detayını döner.
+  String? get lastConnectionError => _lastConnectionError;
+
+  /// Kullanıcı `.env` içine yanlışlıkla `https://supabase.com/dashboard/project/<id>`
+  /// yapıştırsa bile otomatik olarak `https://<id>.supabase.co` REST API adresine dönüştürür.
+  static String normalizeSupabaseUrl(String rawUrl) {
+    final trimmed = rawUrl.trim();
+    if (trimmed.isEmpty) return '';
+    final dashboardRegex = RegExp(
+      r'supabase\.com/dashboard/project/([a-zA-Z0-9_-]+)',
+    );
+    final match = dashboardRegex.firstMatch(trimmed);
+    if (match != null && match.groupCount >= 1) {
+      final projectId = match.group(1);
+      return 'https://$projectId.supabase.co';
+    }
+    return trimmed.endsWith('/')
+        ? trimmed.substring(0, trimmed.length - 1)
+        : trimmed;
+  }
 
   // SQL'deki reset_memur_bank() verileriyle birebir aynı yerel Fallback deposu
   static const List<ProfileModel> _initialFallbackProfiles = [
@@ -17,6 +44,7 @@ class SupabaseService {
       id: '11111111-1111-1111-1111-111111111111',
       fullName: 'Ahmet Yılmaz',
       kurumSicilNo: 'MEB-1042',
+      password: '123',
       unvan: 'Öğretmen',
       balance: 42500.0,
       role: 'user',
@@ -26,6 +54,7 @@ class SupabaseService {
       id: '22222222-2222-2222-2222-222222222222',
       fullName: 'Ayşe Demir',
       kurumSicilNo: 'EGM-8831',
+      password: '123',
       unvan: 'Polis Memuru',
       balance: 51000.0,
       role: 'user',
@@ -35,6 +64,7 @@ class SupabaseService {
       id: '33333333-3333-3333-3333-333333333333',
       fullName: 'Mehmet Kaya',
       kurumSicilNo: 'MAL-0092',
+      password: '123',
       unvan: 'Kurum Mutemedi',
       balance: 64000.0,
       role: 'manager',
@@ -44,6 +74,7 @@ class SupabaseService {
       id: '44444444-4444-4444-4444-444444444444',
       fullName: 'Kemal Bey',
       kurumSicilNo: 'MUF-0001',
+      password: '123',
       unvan: 'Bakanlık Başmüfettişi',
       balance: 95000.0,
       role: 'admin',
@@ -83,12 +114,15 @@ class SupabaseService {
 
   void markInitialized(bool value) {
     _isSupabaseInitialized = value;
+    // Başlangıçta Supabase initialize edildiyse Fallback kapalı (false) başlar;
+    // edilmediyse (ör. test ortamı veya .env yok) doğrudan Fallback (true) olur.
+    _isUsingFallback = !value;
   }
 
   bool get isRemoteEnabled {
     if (!_isSupabaseInitialized) return false;
-    final url = dotenv.maybeGet('SUPABASE_URL') ?? '';
-    final anonKey = dotenv.maybeGet('SUPABASE_ANON_KEY') ?? '';
+    final url = normalizeSupabaseUrl(dotenv.maybeGet('SUPABASE_URL') ?? '');
+    final anonKey = (dotenv.maybeGet('SUPABASE_ANON_KEY') ?? '').trim();
     return url.isNotEmpty &&
         anonKey.isNotEmpty &&
         !url.contains('your-project-id');
@@ -102,8 +136,9 @@ class SupabaseService {
     _fallbackProfiles = List<ProfileModel>.from(_initialFallbackProfiles);
     _fallbackRequests = _buildInitialRequests();
 
-    final url = dotenv.maybeGet('SUPABASE_URL') ?? '';
-    final serviceRoleKey = dotenv.maybeGet('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    final url = normalizeSupabaseUrl(dotenv.maybeGet('SUPABASE_URL') ?? '');
+    final serviceRoleKey = (dotenv.maybeGet('SUPABASE_SERVICE_ROLE_KEY') ?? '')
+        .trim();
 
     if (url.isNotEmpty &&
         serviceRoleKey.isNotEmpty &&
@@ -111,11 +146,17 @@ class SupabaseService {
       try {
         final adminClient = SupabaseClient(url, serviceRoleKey);
         await adminClient.rpc('reset_memur_bank');
+        _isUsingFallback = false;
+        _lastConnectionError = null;
         return true;
-      } catch (_) {
+      } catch (e) {
+        _isUsingFallback = true;
+        _lastConnectionError = e.toString();
+        _isUsingFallback = true;
         return false;
       }
     }
+    _isUsingFallback = true;
     return false;
   }
 
@@ -126,19 +167,27 @@ class SupabaseService {
         final list = (data as List)
             .map((e) => ProfileModel.fromJson(e as Map<String, dynamic>))
             .toList();
+        _isUsingFallback = false;
+        _lastConnectionError = null;
         if (list.isNotEmpty) {
           _fallbackProfiles = list;
+          _isUsingFallback = false;
           return list;
         }
-      } catch (_) {
-        // Fallback'e düş
+        return list;
+      } catch (e) {
+        _isUsingFallback = true;
+        _lastConnectionError = e.toString();
       }
+    } else {
+      _isUsingFallback = true;
     }
+    _isUsingFallback = true;
     return List<ProfileModel>.from(_fallbackProfiles);
   }
 
   Future<List<AdvanceRequestModel>> fetchAdvanceRequests() async {
-    if (isRemoteEnabled) {
+    if (isRemoteEnabled && !_isUsingFallback) {
       try {
         final data = await _client
             .from('advance_requests')
@@ -148,11 +197,14 @@ class SupabaseService {
             .map((e) => AdvanceRequestModel.fromJson(e as Map<String, dynamic>))
             .toList();
         _fallbackRequests = list;
+        _isUsingFallback = false;
         return list;
       } catch (_) {
-        // Fallback'e düş
+        // profiles tablosu bağlandıysa advance_requests hatası yüzünden ana bağlantıyı koparma
+        return List<AdvanceRequestModel>.from(_fallbackRequests);
       }
     }
+    _isUsingFallback = true;
     return List<AdvanceRequestModel>.from(_fallbackRequests);
   }
 
@@ -170,7 +222,11 @@ class SupabaseService {
             .from('profiles')
             .update({'balance': newBalance})
             .eq('id', profileId);
-      } catch (_) {}
+        _isUsingFallback = false;
+      } catch (e) {
+        _isUsingFallback = true;
+        _lastConnectionError = e.toString();
+      }
     }
   }
 
@@ -192,7 +248,11 @@ class SupabaseService {
             .from('profiles')
             .update({'role': role, 'unvan': unvan})
             .eq('id', profileId);
-      } catch (_) {}
+        _isUsingFallback = false;
+      } catch (e) {
+        _isUsingFallback = true;
+        _lastConnectionError = e.toString();
+      }
     }
   }
 
@@ -210,13 +270,18 @@ class SupabaseService {
             .from('profiles')
             .update({'is_frozen': isFrozen})
             .eq('id', profileId);
-      } catch (_) {}
+        _isUsingFallback = false;
+      } catch (e) {
+        _isUsingFallback = true;
+        _lastConnectionError = e.toString();
+      }
     }
   }
 
   Future<void> createOfficerProfile({
     required String fullName,
     required String kurumSicilNo,
+    required String password,
     required String unvan,
     required double initialBalance,
     String role = 'user',
@@ -225,6 +290,7 @@ class SupabaseService {
       id: 'memur-${DateTime.now().millisecondsSinceEpoch}',
       fullName: fullName,
       kurumSicilNo: kurumSicilNo,
+      password: password,
       unvan: unvan,
       balance: initialBalance,
       role: role,
@@ -238,6 +304,7 @@ class SupabaseService {
             .insert({
               'full_name': fullName,
               'kurum_sicil_no': kurumSicilNo,
+              'password': password,
               'unvan': unvan,
               'balance': initialBalance,
               'role': role,
@@ -245,12 +312,16 @@ class SupabaseService {
             })
             .select()
             .single();
+        _isUsingFallback = false;
         _fallbackProfiles = [
           ..._fallbackProfiles,
           ProfileModel.fromJson(inserted),
         ];
         return;
-      } catch (_) {}
+      } catch (e) {
+        _isUsingFallback = true;
+        _lastConnectionError = e.toString();
+      }
     }
 
     _fallbackProfiles = [..._fallbackProfiles, newProfile];
@@ -285,12 +356,16 @@ class SupabaseService {
             })
             .select()
             .single();
+        _isUsingFallback = false;
         _fallbackRequests = [
           AdvanceRequestModel.fromJson(inserted),
           ..._fallbackRequests,
         ];
         return;
-      } catch (_) {}
+      } catch (e) {
+        _isUsingFallback = true;
+        _lastConnectionError = e.toString();
+      }
     }
 
     _fallbackRequests = [localReq, ..._fallbackRequests];
@@ -313,7 +388,11 @@ class SupabaseService {
             .from('advance_requests')
             .update({'status': status})
             .eq('id', requestId);
-      } catch (_) {}
+        _isUsingFallback = false;
+      } catch (e) {
+        _isUsingFallback = true;
+        _lastConnectionError = e.toString();
+      }
     }
   }
 }

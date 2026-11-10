@@ -2,6 +2,7 @@ class ProfileModel {
   final String id;
   final String fullName;
   final String kurumSicilNo;
+  final String password;
   final String unvan;
   final double balance;
   final String role; // 'user', 'manager', 'admin'
@@ -11,11 +12,30 @@ class ProfileModel {
     required this.id,
     required this.fullName,
     required this.kurumSicilNo,
+    required this.password,
     required this.unvan,
     required this.balance,
     required this.role,
     this.isFrozen = false,
   });
+
+  /// Merkezi Kurumsal Türk Lirası Formatlayıcı (`42.500 ₺` veya `42.500,00 ₺`)
+  static String formatCurrency(double value, {bool showDecimals = false}) {
+    final isNeg = value < 0;
+    final absVal = value.abs();
+    final whole = absVal.toStringAsFixed(0);
+    final buffer = StringBuffer();
+    for (int i = 0; i < whole.length; i++) {
+      final reverseIndex = whole.length - i;
+      buffer.write(whole[i]);
+      if (reverseIndex > 1 && reverseIndex % 3 == 1) {
+        buffer.write('.');
+      }
+    }
+    final prefix = isNeg ? '-' : '';
+    final suffix = showDecimals ? ',00 ₺' : ' ₺';
+    return '$prefix${buffer.toString()}$suffix';
+  }
 
   bool get isAdmin => role == 'admin';
   bool get isManager => role == 'manager';
@@ -82,6 +102,7 @@ class ProfileModel {
     String? id,
     String? fullName,
     String? kurumSicilNo,
+    String? password,
     String? unvan,
     double? balance,
     String? role,
@@ -91,6 +112,7 @@ class ProfileModel {
       id: id ?? this.id,
       fullName: fullName ?? this.fullName,
       kurumSicilNo: kurumSicilNo ?? this.kurumSicilNo,
+      password: password ?? this.password,
       unvan: unvan ?? this.unvan,
       balance: balance ?? this.balance,
       role: role ?? this.role,
@@ -103,6 +125,7 @@ class ProfileModel {
       id: json['id'] as String? ?? '',
       fullName: json['full_name'] as String? ?? '',
       kurumSicilNo: json['kurum_sicil_no'] as String? ?? '',
+      password: json['password'] as String? ?? '',
       unvan: json['unvan'] as String? ?? '',
       balance: (json['balance'] as num?)?.toDouble() ?? 0.0,
       role: json['role'] as String? ?? 'user',
@@ -115,6 +138,7 @@ class ProfileModel {
       'id': id,
       'full_name': fullName,
       'kurum_sicil_no': kurumSicilNo,
+      'password': password,
       'unvan': unvan,
       'balance': balance,
       'role': role,

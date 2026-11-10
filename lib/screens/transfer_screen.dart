@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/bank_cubit.dart';
 import '../constants/app_paddings.dart';
 import '../constants/app_strings.dart';
+import '../models/profile_model.dart';
 import '../theme/app_theme.dart';
 import '../widgets/request_card_widget.dart';
 
@@ -107,7 +108,7 @@ class _TransferHeroBanner extends StatelessWidget {
                 ),
                 AppPaddings.vGapXs,
                 Text(
-                  'Aktif Hesap: ${profile.fullName} (${profile.kurumSicilNo}) • Bakiye: ${profile.balance.toStringAsFixed(0)} ₺',
+                  'Aktif Hesap: ${profile.fullName} (${profile.kurumSicilNo}) • Bakiye: ${ProfileModel.formatCurrency(profile.balance, showDecimals: true)}',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.primaryContainer,
                     fontWeight: FontWeight.w600,
@@ -156,8 +157,7 @@ class _TransferModePinnedHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return BlocBuilder<BankCubit, BankState>(
       builder: (context, state) {
@@ -287,7 +287,7 @@ class _AdvanceApplicationCard extends StatelessWidget {
 
                 // Hızlı Tutar Seçim Çipleri (Stitch UI Preset Chips)
                 Text(
-                  'Hızlı Tutar Seçimi (Seçili: ${state.advanceAmountInput} ₺)',
+                  'Hızlı Tutar Seçimi (Seçili: ${ProfileModel.formatCurrency(reqAmount)})',
                   style: theme.textTheme.labelMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -311,6 +311,7 @@ class _AdvanceApplicationCard extends StatelessWidget {
                   key: ValueKey('adv-amount-${state.formPresetVersion}'),
                   initialValue: state.advanceAmountInput,
                   keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.next,
                   onChanged: cubit.setAdvanceAmountInput,
                   decoration: const InputDecoration(
                     labelText: 'Avans / Kredi Tutarı (₺)',
@@ -396,7 +397,7 @@ class _AdvanceApplicationCard extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                '3 x ${installment.toStringAsFixed(0)} ₺',
+                                '3 x ${ProfileModel.formatCurrency(installment)}',
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: colorScheme.onSurfaceVariant,
                                 ),
@@ -452,7 +453,9 @@ class _AdvanceApplicationCard extends StatelessWidget {
                 TextFormField(
                   key: ValueKey('adv-reason-${state.formPresetVersion}'),
                   initialValue: state.advanceReasonInput,
+                  textInputAction: TextInputAction.done,
                   onChanged: cubit.setAdvanceReasonInput,
+                  onFieldSubmitted: (_) => cubit.submitAdvanceRequest(),
                   decoration: const InputDecoration(
                     labelText: 'Başvuru Gerekçesi / Açıklama',
                     prefixIcon: Icon(Icons.description_outlined),
@@ -470,28 +473,33 @@ class _AdvanceApplicationCard extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Faiz & Dosya Masrafı: 0,00 ₺ (Kamu Muafiyeti)',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: ext.approvedGreen,
-                              fontWeight: FontWeight.w700,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Faiz & Dosya Masrafı: 0,00 ₺ (Kamu Muafiyeti)',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: ext.approvedGreen,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                          ),
-                          Text(
-                            state.repaymentPlanIndex == 0
-                                ? 'Ayın 15\'inde Tek Seferde Mahsup'
-                                : 'Aylık Taksit: ${installment.toStringAsFixed(0)} ₺ x 3 Ay',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
+                            Text(
+                              state.repaymentPlanIndex == 0
+                                  ? 'Ayın 15\'inde Tek Seferde Mahsup'
+                                  : 'Aylık Taksit: ${ProfileModel.formatCurrency(installment)} x 3 Ay',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       Text(
-                        '${reqAmount.toStringAsFixed(0)} ₺',
+                        ProfileModel.formatCurrency(
+                          reqAmount,
+                          showDecimals: true,
+                        ),
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: colorScheme.primary,
                           fontWeight: FontWeight.w900,
@@ -567,6 +575,35 @@ class _PeerTransferCard extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (!state.fastInstantConfirmEnabled) ...[
+                  AppPaddings.vGapSm,
+                  Container(
+                    padding: AppPaddings.cardPaddingCompact,
+                    decoration: BoxDecoration(
+                      color: ext.pendingAmber,
+                      borderRadius: AppPaddings.radiusMd,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.lock_clock_outlined,
+                          color: colorScheme.onSecondary,
+                          size: AppPaddings.iconMd,
+                        ),
+                        AppPaddings.hGapSm,
+                        Expanded(
+                          child: Text(
+                            'FAST Kolay Adres transfer yetkiniz şu an kapalıdır. Profil sekmesinden tek tıkla açabilirsiniz.',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: colorScheme.onSecondary,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 AppPaddings.vGapMd,
                 Text(
                   'Alıcı Kamu Personelini Seçin:',
@@ -591,9 +628,11 @@ class _PeerTransferCard extends StatelessWidget {
                                 : ext.subtleCardBg,
                             borderRadius: AppPaddings.radiusMd,
                             border: Border.all(
-                              color: isSelected
-                                  ? colorScheme.primary
-                                  : colorScheme.outline,
+                              color: person.isFrozen
+                                  ? ext.rejectedRed
+                                  : (isSelected
+                                        ? colorScheme.primary
+                                        : colorScheme.outline),
                             ),
                           ),
                           child: Row(
@@ -602,22 +641,41 @@ class _PeerTransferCard extends StatelessWidget {
                                 isSelected
                                     ? Icons.radio_button_checked
                                     : Icons.radio_button_off,
-                                color: colorScheme.primary,
+                                color: person.isFrozen
+                                    ? ext.rejectedRed
+                                    : colorScheme.primary,
                                 size: AppPaddings.iconMd,
                               ),
                               AppPaddings.hGapSm,
                               Expanded(
-                                child: Text(
-                                  '${person.fullName} • ${person.unvan} (${person.kurumSicilNo})',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${person.fullName} • ${person.unvan} (${person.kurumSicilNo})',
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                    if (person.isFrozen)
+                                      Text(
+                                        'BLOKE HESAP (MASAK / Teftiş Tedbiri - Transfer Yapılamaz)',
+                                        style: theme.textTheme.labelSmall
+                                            ?.copyWith(
+                                              color: ext.rejectedRed,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                      ),
+                                  ],
                                 ),
                               ),
                               Text(
-                                '${person.balance.toStringAsFixed(0)} ₺',
+                                ProfileModel.formatCurrency(person.balance),
                                 style: theme.textTheme.labelMedium?.copyWith(
-                                  color: colorScheme.primary,
+                                  color: person.isFrozen
+                                      ? ext.rejectedRed
+                                      : colorScheme.primary,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
@@ -646,6 +704,7 @@ class _PeerTransferCard extends StatelessWidget {
                   key: ValueKey('trf-amount-${state.formPresetVersion}'),
                   initialValue: state.transferAmountInput,
                   keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.next,
                   onChanged: cubit.setTransferAmountInput,
                   decoration: InputDecoration(
                     labelText:
@@ -656,7 +715,9 @@ class _PeerTransferCard extends StatelessWidget {
                 AppPaddings.vGapMd,
                 TextFormField(
                   initialValue: state.transferNoteInput,
+                  textInputAction: TextInputAction.done,
                   onChanged: cubit.setTransferNoteInput,
+                  onFieldSubmitted: (_) => cubit.submitMoneyTransfer(),
                   decoration: const InputDecoration(
                     labelText: 'Transfer Açıklaması',
                     prefixIcon: Icon(Icons.notes_outlined),
@@ -698,6 +759,7 @@ class _AmountPresetChip extends StatelessWidget {
             ? state.advanceAmountInput
             : state.transferAmountInput;
         final isSelected = currentVal == amountText;
+        final numVal = double.tryParse(amountText) ?? 0.0;
 
         return InkWell(
           onTap: () {
@@ -717,7 +779,7 @@ class _AmountPresetChip extends StatelessWidget {
               borderRadius: AppPaddings.radiusMd,
             ),
             child: Text(
-              '+$amountText ₺',
+              '+${ProfileModel.formatCurrency(numVal)}',
               style: theme.textTheme.labelMedium?.copyWith(
                 color: isSelected
                     ? colorScheme.onPrimary

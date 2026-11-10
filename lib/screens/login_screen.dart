@@ -4,25 +4,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/bank_cubit.dart';
 import '../bloc/theme_cubit.dart';
 import '../constants/app_paddings.dart';
+import '../models/profile_model.dart';
 import '../theme/app_theme.dart';
+import '../widgets/role_switcher_bar.dart';
 
 /// Kamu Personeli Kurumsal Giriş Ekranı (`LoginScreen`).
 /// Zorunlu `CustomScrollView` + `const SliverToBoxAdapter` + `const PinnedHeaderSliver` + `SliverList.builder` mimarisiyle kurulmuştur.
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
-
-  String _formatBalance(double value) {
-    final whole = value.toStringAsFixed(0);
-    final buffer = StringBuffer();
-    for (int i = 0; i < whole.length; i++) {
-      final reverseIndex = whole.length - i;
-      buffer.write(whole[i]);
-      if (reverseIndex > 1 && reverseIndex % 3 == 1) {
-        buffer.write('.');
-      }
-    }
-    return '${buffer.toString()} ₺';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,10 +35,19 @@ class LoginScreen extends StatelessWidget {
               ),
             ),
             AppPaddings.hGapSm,
-            const Text('MemurBank Kurumsal Giriş'),
+            const Flexible(
+              child: Text(
+                'MemurBank Kurumsal Giriş',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         actions: [
+          const Padding(
+            padding: AppPaddings.allXxs,
+            child: ConnectionStatusBadge(),
+          ),
           BlocBuilder<ThemeCubit, ThemeMode>(
             builder: (context, themeMode) {
               return IconButton(
@@ -65,134 +63,158 @@ class LoginScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: BlocBuilder<BankCubit, BankState>(
-        builder: (context, state) {
-          final cubit = context.read<BankCubit>();
+      body: Column(
+        children: [
+          const FallbackModeStickyBanner(),
+          Expanded(
+            child: BlocBuilder<BankCubit, BankState>(
+              builder: (context, state) {
+                final cubit = context.read<BankCubit>();
 
-          return CustomScrollView(
-            slivers: [
-              // 1. Üst Kurumsal Giriş Formu (Kurum Sicil No ile Doğrulama)
-              const SliverToBoxAdapter(child: _LoginFormHeaderCard()),
+                return CustomScrollView(
+                  slivers: [
+                    // 1. Üst Kurumsal Giriş Formu (Kurum Sicil No + Şifre ile Doğrulama)
+                    const SliverToBoxAdapter(child: _LoginFormHeaderCard()),
 
-              // 2. Yapışkan Başlık: Hızlı Demo Memur Seçici (3 Rol Testi)
-              const PinnedHeaderSliver(child: _DemoAccountsPinnedHeader()),
+                    // 2. Yapışkan Başlık: Hızlı Demo Memur Seçici (3 Rol Testi)
+                    const PinnedHeaderSliver(
+                      child: _DemoAccountsPinnedHeader(),
+                    ),
 
-              // 3. Tek Tıkla Demo Memur / Mutemet / Başmüfettiş Giriş Kartları (SliverList.builder)
-              SliverList.builder(
-                itemCount: state.profiles.length,
-                itemBuilder: (context, index) {
-                  final officer = state.profiles[index];
+                    // 3. Tek Tıkla Demo Memur / Mutemet / Başmüfettiş Giriş Kartları (SliverList.builder)
+                    SliverList.builder(
+                      itemCount: state.profiles.length,
+                      itemBuilder: (context, index) {
+                        final officer = state.profiles[index];
 
-                  return Padding(
-                    padding: AppPaddings.cardMargin,
-                    child: InkWell(
-                      onTap: () => cubit.loginAsProfile(officer),
-                      borderRadius: AppPaddings.radiusLg,
-                      child: Container(
-                        padding: AppPaddings.cardPadding,
-                        decoration: BoxDecoration(
-                          color: ext.cardContainerBg,
-                          borderRadius: AppPaddings.radiusLg,
-                          border: Border.all(
-                            color: officer.isAdmin
-                                ? colorScheme.secondary
-                                : colorScheme.outline,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: AppPaddings.rXl,
-                              backgroundColor: officer.isAdmin
-                                  ? ext.adminCardBg
-                                  : colorScheme.primaryContainer,
-                              foregroundColor: officer.isAdmin
-                                  ? ext.onAdminCard
-                                  : colorScheme.onPrimaryContainer,
-                              child: Text(
-                                officer.initials,
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w900,
+                        return Padding(
+                          padding: AppPaddings.cardMargin,
+                          child: InkWell(
+                            onTap: () => cubit.loginAsProfile(officer),
+                            borderRadius: AppPaddings.radiusLg,
+                            child: Container(
+                              padding: AppPaddings.cardPadding,
+                              decoration: BoxDecoration(
+                                color: ext.cardContainerBg,
+                                borderRadius: AppPaddings.radiusLg,
+                                border: Border.all(
                                   color: officer.isAdmin
-                                      ? ext.onAdminCard
-                                      : colorScheme.onPrimaryContainer,
+                                      ? colorScheme.secondary
+                                      : colorScheme.outline,
                                 ),
                               ),
-                            ),
-                            AppPaddings.hGapMd,
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              child: Row(
                                 children: [
-                                  Row(
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                          officer.fullName,
-                                          style: theme.textTheme.titleSmall
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      AppPaddings.hGapXs,
-                                      Container(
-                                        padding: AppPaddings.badgePadding,
-                                        decoration: BoxDecoration(
-                                          color: officer.isAdmin
-                                              ? colorScheme.secondary
-                                              : colorScheme.primaryContainer,
-                                          borderRadius: AppPaddings.radiusSm,
-                                        ),
-                                        child: Text(
-                                          officer.role.toUpperCase(),
-                                          style: theme.textTheme.labelSmall
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w800,
-                                                color: officer.isAdmin
-                                                    ? colorScheme.onSecondary
-                                                    : colorScheme
-                                                          .onPrimaryContainer,
-                                              ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  AppPaddings.vGapXxs,
-                                  Text(
-                                    '${officer.unvan} • Sicil: ${officer.kurumSicilNo} • ${_formatBalance(officer.balance)}',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                      fontWeight: FontWeight.w600,
+                                  CircleAvatar(
+                                    radius: AppPaddings.rXl,
+                                    backgroundColor: officer.isAdmin
+                                        ? ext.adminCardBg
+                                        : colorScheme.primaryContainer,
+                                    foregroundColor: officer.isAdmin
+                                        ? ext.onAdminCard
+                                        : colorScheme.onPrimaryContainer,
+                                    child: Text(
+                                      officer.initials,
+                                      style: theme.textTheme.titleSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w900,
+                                            color: officer.isAdmin
+                                                ? ext.onAdminCard
+                                                : colorScheme
+                                                      .onPrimaryContainer,
+                                          ),
                                     ),
+                                  ),
+                                  AppPaddings.hGapMd,
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Flexible(
+                                              child: Text(
+                                                officer.fullName,
+                                                style: theme
+                                                    .textTheme
+                                                    .titleSmall
+                                                    ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                    ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            AppPaddings.hGapXs,
+                                            Container(
+                                              padding: AppPaddings.badgePadding,
+                                              decoration: BoxDecoration(
+                                                color: officer.isAdmin
+                                                    ? colorScheme.secondary
+                                                    : colorScheme
+                                                          .primaryContainer,
+                                                borderRadius:
+                                                    AppPaddings.radiusSm,
+                                              ),
+                                              child: Text(
+                                                officer.role.toUpperCase(),
+                                                style: theme
+                                                    .textTheme
+                                                    .labelSmall
+                                                    ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      color: officer.isAdmin
+                                                          ? colorScheme
+                                                                .onSecondary
+                                                          : colorScheme
+                                                                .onPrimaryContainer,
+                                                    ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        AppPaddings.vGapXxs,
+                                        Text(
+                                          '${officer.unvan} • Sicil: ${officer.kurumSicilNo} • Şifre: ${officer.password} • ${ProfileModel.formatCurrency(officer.balance)}',
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                                color: colorScheme
+                                                    .onSurfaceVariant,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  FilledButton.tonalIcon(
+                                    onPressed: () =>
+                                        cubit.loginAsProfile(officer),
+                                    style: FilledButton.styleFrom(
+                                      padding: AppPaddings.buttonPaddingCompact,
+                                    ),
+                                    icon: const Icon(
+                                      Icons.login,
+                                      size: AppPaddings.iconSm,
+                                    ),
+                                    label: const Text('Giriş'),
                                   ),
                                 ],
                               ),
                             ),
-                            FilledButton.tonalIcon(
-                              onPressed: () => cubit.loginAsProfile(officer),
-                              style: FilledButton.styleFrom(
-                                padding: AppPaddings.buttonPaddingCompact,
-                              ),
-                              icon: const Icon(
-                                Icons.login,
-                                size: AppPaddings.iconSm,
-                              ),
-                              label: const Text('Giriş'),
-                            ),
-                          ],
-                        ),
-                      ),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
 
-              const SliverToBoxAdapter(child: AppPaddings.vGapXxxl),
-            ],
-          );
-        },
+                    const SliverToBoxAdapter(child: AppPaddings.vGapXxxl),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -257,7 +279,7 @@ class _LoginFormHeaderCard extends StatelessWidget {
                           ),
                           AppPaddings.vGapXxs,
                           Text(
-                            'Kayıtlı Kurum Sicil Numaranız ile güvenli kurumsal oturum açın.',
+                            'Kurum Sicil Numaranız ve Giriş Şifreniz ile güvenli kurumsal oturum açın.',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: colorScheme.primaryContainer,
                             ),
@@ -270,7 +292,7 @@ class _LoginFormHeaderCard extends StatelessWidget {
               ),
               AppPaddings.vGapMd,
 
-              // Kurum Sicil No ile Giriş Kartı (Supabase `profiles.kurum_sicil_no` Birebir Uyumlu)
+              // Kurum Sicil No & Şifre ile Giriş Kartı (Supabase `profiles.kurum_sicil_no` & `profiles.password`)
               Container(
                 padding: AppPaddings.cardPadding,
                 decoration: BoxDecoration(
@@ -282,7 +304,7 @@ class _LoginFormHeaderCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      'Kurum Sicil No ile Güvenli Giriş',
+                      'Kurum Sicil No & Şifre ile Güvenli Giriş',
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
@@ -291,10 +313,35 @@ class _LoginFormHeaderCard extends StatelessWidget {
                     TextFormField(
                       key: ValueKey('login_sicil_${state.formPresetVersion}'),
                       initialValue: state.loginSicilInput,
+                      textInputAction: TextInputAction.next,
                       onChanged: cubit.setLoginSicilInput,
                       decoration: const InputDecoration(
                         labelText: 'Kurum Sicil No (MEB-1042, EGM-8831, MAL-0092, MUF-0001)',
                         prefixIcon: Icon(Icons.badge_outlined),
+                      ),
+                    ),
+                    AppPaddings.vGapMd,
+                    TextFormField(
+                      key: ValueKey(
+                        'login_password_${state.formPresetVersion}',
+                      ),
+                      initialValue: state.loginPasswordInput,
+                      obscureText: state.isLoginPasswordObscured,
+                      textInputAction: TextInputAction.done,
+                      onChanged: cubit.setLoginPasswordInput,
+                      onFieldSubmitted: (_) => cubit.loginWithCredentials(),
+                      decoration: InputDecoration(
+                        labelText: 'Giriş Şifresi',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          onPressed: cubit.toggleLoginPasswordVisibility,
+                          tooltip: 'Şifreyi Göster / Gizle',
+                          icon: Icon(
+                            state.isLoginPasswordObscured
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                        ),
                       ),
                     ),
                     AppPaddings.vGapMd,
@@ -304,7 +351,7 @@ class _LoginFormHeaderCard extends StatelessWidget {
                         padding: AppPaddings.buttonPadding,
                       ),
                       icon: const Icon(Icons.login),
-                      label: const Text('Sicil No ile Güvenli Giriş Yap'),
+                      label: const Text('Sicil No ve Şifre ile Giriş Yap'),
                     ),
                   ],
                 ),

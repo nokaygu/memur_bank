@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/bank_cubit.dart';
 import '../constants/app_paddings.dart';
 import '../models/advance_request_model.dart';
+import '../models/profile_model.dart';
 import '../theme/app_theme.dart';
 
 /// `SliverList.builder` içinde kullanılan avans/kredi talebi kartı.
@@ -13,19 +14,6 @@ class RequestCardWidget extends StatelessWidget {
   final AdvanceRequestModel request;
 
   const RequestCardWidget({super.key, required this.request});
-
-  String _formatAmount(double value) {
-    final whole = value.toStringAsFixed(0);
-    final buffer = StringBuffer();
-    for (int i = 0; i < whole.length; i++) {
-      final rev = whole.length - i;
-      buffer.write(whole[i]);
-      if (rev > 1 && rev % 3 == 1) {
-        buffer.write('.');
-      }
-    }
-    return '${buffer.toString()},00 ₺';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -156,7 +144,10 @@ class RequestCardWidget extends StatelessWidget {
                           ),
                           AppPaddings.vGapXxs,
                           Text(
-                            _formatAmount(request.amount),
+                            ProfileModel.formatCurrency(
+                              request.amount,
+                              showDecimals: true,
+                            ),
                             style: theme.textTheme.titleMedium?.copyWith(
                               color: colorScheme.primary,
                               fontWeight: FontWeight.w900,
@@ -247,17 +238,8 @@ class TransactionItemWidget extends StatelessWidget {
   const TransactionItemWidget({super.key, required this.transaction});
 
   String _formatSignedAmount(double value, bool isIncoming) {
-    final whole = value.toStringAsFixed(0);
-    final buffer = StringBuffer();
-    for (int i = 0; i < whole.length; i++) {
-      final rev = whole.length - i;
-      buffer.write(whole[i]);
-      if (rev > 1 && rev % 3 == 1) {
-        buffer.write('.');
-      }
-    }
     final prefix = isIncoming ? '+' : '-';
-    return '$prefix${buffer.toString()},00 ₺';
+    return '$prefix${ProfileModel.formatCurrency(value, showDecimals: true)}';
   }
 
   void _openDigitalReceipt(BuildContext context) {
@@ -478,7 +460,10 @@ class _DigitalReceiptBottomSheet extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '${transaction.amount.toStringAsFixed(0)},00 ₺',
+                        ProfileModel.formatCurrency(
+                          transaction.amount,
+                          showDecimals: true,
+                        ),
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w900,
                           color: transaction.isIncoming

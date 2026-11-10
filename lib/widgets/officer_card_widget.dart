@@ -7,24 +7,11 @@ import '../models/profile_model.dart';
 import '../theme/app_theme.dart';
 
 /// `SliverList.builder` içinde kullanılan memur satırı ve tıklandığında açılan
-/// Bakanlık Başmüfettişi Tanrı Modu (God Mode) BottomSheet bileşeni.
+/// Bakanlık Başmüfettişi Tanrı Modu (God Mode) / Mutemetlik Sicil Özeti BottomSheet bileşeni.
 class OfficerCardWidget extends StatelessWidget {
   final ProfileModel officer;
 
   const OfficerCardWidget({super.key, required this.officer});
-
-  String _formatBalance(double value) {
-    final whole = value.toStringAsFixed(0);
-    final buffer = StringBuffer();
-    for (int i = 0; i < whole.length; i++) {
-      final rev = whole.length - i;
-      buffer.write(whole[i]);
-      if (rev > 1 && rev % 3 == 1) {
-        buffer.write('.');
-      }
-    }
-    return '${buffer.toString()} ₺';
-  }
 
   void _openGodModeBottomSheet(BuildContext context) {
     final cubit = context.read<BankCubit>();
@@ -47,132 +34,147 @@ class OfficerCardWidget extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final ext = theme.extension<MemurBankThemeExtension>()!;
 
-    return Padding(
-      padding: AppPaddings.cardMargin,
-      child: InkWell(
-        onTap: () => _openGodModeBottomSheet(context),
-        borderRadius: AppPaddings.radiusLg,
-        child: Container(
-          padding: AppPaddings.cardPadding,
-          decoration: BoxDecoration(
-            color: ext.cardContainerBg,
+    return BlocBuilder<BankCubit, BankState>(
+      builder: (context, state) {
+        final isViewerAdmin = state.activeProfile.isAdmin;
+
+        return Padding(
+          padding: AppPaddings.cardMargin,
+          child: InkWell(
+            onTap: () => _openGodModeBottomSheet(context),
             borderRadius: AppPaddings.radiusLg,
-            border: Border.all(
-              color: officer.isFrozen ? ext.rejectedRed : colorScheme.outline,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: ext.shadowColor,
-                blurRadius: AppPaddings.sm,
-                offset: const Offset(0, AppPaddings.xxs),
+            child: Container(
+              padding: AppPaddings.cardPadding,
+              decoration: BoxDecoration(
+                color: ext.cardContainerBg,
+                borderRadius: AppPaddings.radiusLg,
+                border: Border.all(
+                  color: officer.isFrozen
+                      ? ext.rejectedRed
+                      : colorScheme.outline,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: ext.shadowColor,
+                    blurRadius: AppPaddings.sm,
+                    offset: const Offset(0, AppPaddings.xxs),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: AppPaddings.rXl,
-                    backgroundColor: officer.isFrozen
-                        ? ext.rejectedRed
-                        : colorScheme.primaryContainer,
-                    foregroundColor: officer.isFrozen
-                        ? colorScheme.onError
-                        : colorScheme.onPrimaryContainer,
-                    child: Text(
-                      officer.initials,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: officer.isFrozen
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: AppPaddings.rXl,
+                        backgroundColor: officer.isFrozen
+                            ? ext.rejectedRed
+                            : colorScheme.primaryContainer,
+                        foregroundColor: officer.isFrozen
                             ? colorScheme.onError
                             : colorScheme.onPrimaryContainer,
+                        child: Text(
+                          officer.initials,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: officer.isFrozen
+                                ? colorScheme.onError
+                                : colorScheme.onPrimaryContainer,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  AppPaddings.hGapMd,
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                      AppPaddings.hGapMd,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Flexible(
-                              child: Text(
-                                officer.fullName,
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  color: colorScheme.onSurface,
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    officer.fullName,
+                                    style: theme.textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      color: colorScheme.onSurface,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                                AppPaddings.hGapXs,
+                                Container(
+                                  padding: AppPaddings.badgePadding,
+                                  decoration: BoxDecoration(
+                                    color: officer.isFrozen
+                                        ? ext.rejectedRed
+                                        : (officer.isAdmin
+                                              ? colorScheme.secondary
+                                              : colorScheme.primaryContainer),
+                                    borderRadius: AppPaddings.radiusSm,
+                                  ),
+                                  child: Text(
+                                    officer.isFrozen
+                                        ? 'DONDURULDU'
+                                        : officer.role.toUpperCase(),
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      color: officer.isFrozen
+                                          ? colorScheme.onError
+                                          : (officer.isAdmin
+                                                ? colorScheme.onSecondary
+                                                : colorScheme
+                                                      .onPrimaryContainer),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            AppPaddings.hGapXs,
-                            Container(
-                              padding: AppPaddings.badgePadding,
-                              decoration: BoxDecoration(
-                                color: officer.isFrozen
-                                    ? ext.rejectedRed
-                                    : (officer.isAdmin
-                                          ? colorScheme.secondary
-                                          : colorScheme.primaryContainer),
-                                borderRadius: AppPaddings.radiusSm,
-                              ),
-                              child: Text(
-                                officer.isFrozen
-                                    ? 'DONDURULDU'
-                                    : officer.role.toUpperCase(),
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  color: officer.isFrozen
-                                      ? colorScheme.onError
-                                      : (officer.isAdmin
-                                            ? colorScheme.onSecondary
-                                            : colorScheme.onPrimaryContainer),
-                                ),
+                            AppPaddings.vGapXxs,
+                            Text(
+                              '${officer.unvan} • Sicil: ${officer.kurumSicilNo}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
                         ),
-                        AppPaddings.vGapXxs,
-                        Text(
-                          '${officer.unvan} • Sicil: ${officer.kurumSicilNo}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        _formatBalance(officer.balance),
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          color: officer.isFrozen
-                              ? ext.rejectedRed
-                              : colorScheme.primary,
-                        ),
                       ),
-                      AppPaddings.vGapXxs,
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Icon(
-                            Icons.touch_app_outlined,
-                            size: AppPaddings.iconXs,
-                            color: colorScheme.secondary,
-                          ),
-                          AppPaddings.hGapXxs,
                           Text(
-                            'Tanrı Modu',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: colorScheme.secondary,
-                              fontWeight: FontWeight.w700,
+                            ProfileModel.formatCurrency(officer.balance),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              color: officer.isFrozen
+                                  ? ext.rejectedRed
+                                  : colorScheme.primary,
                             ),
+                          ),
+                          AppPaddings.vGapXxs,
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isViewerAdmin
+                                    ? Icons.touch_app_outlined
+                                    : Icons.info_outline,
+                                size: AppPaddings.iconXs,
+                                color: isViewerAdmin
+                                    ? colorScheme.secondary
+                                    : colorScheme.primary,
+                              ),
+                              AppPaddings.hGapXxs,
+                              Text(
+                                isViewerAdmin ? 'Tanrı Modu' : 'Sicil Özeti',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: isViewerAdmin
+                                      ? colorScheme.secondary
+                                      : colorScheme.primary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -180,10 +182,10 @@ class OfficerCardWidget extends StatelessWidget {
                   ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -206,6 +208,9 @@ class _OfficerGodModeBottomSheet extends StatelessWidget {
           orElse: () => state.activeProfile,
         );
         final cubit = context.read<BankCubit>();
+        final isViewerAdmin = state.activeProfile.isAdmin;
+        final isProtectedTarget =
+            officer.id == state.activeProfile.id || officer.isAdmin;
 
         return SafeArea(
           child: Padding(
@@ -240,7 +245,7 @@ class _OfficerGodModeBottomSheet extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '${officer.unvan} • Bakiye: ${officer.balance.toStringAsFixed(0)} ₺',
+                            '${officer.unvan} • Bakiye: ${ProfileModel.formatCurrency(officer.balance, showDecimals: true)}',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                             ),
@@ -257,97 +262,185 @@ class _OfficerGodModeBottomSheet extends StatelessWidget {
                 AppPaddings.vGapMd,
                 const Divider(),
                 AppPaddings.vGapSm,
-                Text(
-                  'BAKANLIK BAŞMÜFETTİŞİ TANRI MODU (GOD MODE) YETKİLERİ',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: colorScheme.secondary,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                AppPaddings.vGapMd,
 
-                // 1. Promosyon Parası Gönder
-                FilledButton.icon(
-                  onPressed: () {
-                    cubit.sendFundsToOfficer(
-                      officer: officer,
-                      amount: 12500.0,
-                      label: 'Kurum Maaş Promosyonu',
-                    );
-                    Navigator.of(context).pop();
-                  },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: colorScheme.secondary,
-                    foregroundColor: colorScheme.onSecondary,
-                    padding: AppPaddings.buttonPadding,
+                if (!isViewerAdmin) ...[
+                  // Kurum Mutemedi (Manager) için Salt-Okunur Sicil & Bordro Özeti
+                  Container(
+                    padding: AppPaddings.cardPadding,
+                    decoration: BoxDecoration(
+                      color: ext.subtleCardBg,
+                      borderRadius: AppPaddings.radiusMd,
+                      border: Border.all(color: colorScheme.outline),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'KURUM MUTEMETLİĞİ SİCİL & MAAŞ ÖZETİ',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colorScheme.primary,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        AppPaddings.vGapXs,
+                        Text(
+                          'Kurum: ${officer.institutionName}',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        Text(
+                          'Derece / Kademe: ${officer.derecekademe}',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        Text(
+                          'Maaş IBAN: ${officer.formattedIban}',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        Text(
+                          'Tahmini Net Maaş: ${ProfileModel.formatCurrency(officer.estimatedNetSalary, showDecimals: true)}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  icon: const Icon(Icons.card_giftcard_outlined),
-                  label: const Text('Promosyon Parası Gönder (+12.500 ₺)'),
-                ),
-                AppPaddings.vGapSm,
+                  AppPaddings.vGapSm,
+                  Container(
+                    padding: AppPaddings.cardPaddingCompact,
+                    decoration: BoxDecoration(
+                      color: colorScheme.primaryContainer,
+                      borderRadius: AppPaddings.radiusMd,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.lock_person_outlined,
+                          color: colorScheme.onPrimaryContainer,
+                          size: AppPaddings.iconMd,
+                        ),
+                        AppPaddings.hGapSm,
+                        Expanded(
+                          child: Text(
+                            'Bilgi: Tanrı Modu müdahale yetkileri (Promosyon Gönder, Rol Ata, MASAK Hesap Dondur) yalnızca Bakanlık Başmüfettişi (Admin) rolüne açıktır.',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: colorScheme.onPrimaryContainer,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  AppPaddings.vGapMd,
+                  FilledButton.icon(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: FilledButton.styleFrom(
+                      padding: AppPaddings.buttonPadding,
+                    ),
+                    icon: const Icon(Icons.check_circle_outline),
+                    label: const Text('Tamam'),
+                  ),
+                ] else ...[
+                  Text(
+                    'BAKANLIK BAŞMÜFETTİŞİ TANRI MODU (GOD MODE) YETKİLERİ',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: colorScheme.secondary,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  AppPaddings.vGapMd,
 
-                // 2. Maaş Yatır
-                FilledButton.icon(
-                  onPressed: () {
-                    cubit.sendFundsToOfficer(
-                      officer: officer,
-                      amount: 45000.0,
-                      label: 'Kamu Personeli Maaş Ödemesi',
-                    );
-                    Navigator.of(context).pop();
-                  },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: ext.approvedGreen,
-                    foregroundColor: colorScheme.onPrimary,
-                    padding: AppPaddings.buttonPadding,
+                  // 1. Promosyon Parası Gönder
+                  FilledButton.icon(
+                    onPressed: () {
+                      cubit.sendFundsToOfficer(
+                        officer: officer,
+                        amount: 12500.0,
+                        label: 'Kurum Maaş Promosyonu',
+                      );
+                      Navigator.of(context).pop();
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: colorScheme.secondary,
+                      foregroundColor: colorScheme.onSecondary,
+                      padding: AppPaddings.buttonPadding,
+                    ),
+                    icon: const Icon(Icons.card_giftcard_outlined),
+                    label: const Text('Promosyon Parası Gönder (+12.500 ₺)'),
                   ),
-                  icon: const Icon(Icons.payments_outlined),
-                  label: const Text('Maaş Yatır (+45.000 ₺)'),
-                ),
-                AppPaddings.vGapSm,
+                  AppPaddings.vGapSm,
 
-                // 3. Rol / Unvan Değiştir (Müdür Yap)
-                OutlinedButton.icon(
-                  onPressed: () {
-                    cubit.toggleOfficerManagerRole(officer);
-                    Navigator.of(context).pop();
-                  },
-                  style: OutlinedButton.styleFrom(
-                    padding: AppPaddings.buttonPadding,
+                  // 2. Maaş Yatır
+                  FilledButton.icon(
+                    onPressed: () {
+                      cubit.sendFundsToOfficer(
+                        officer: officer,
+                        amount: 45000.0,
+                        label: 'Kamu Personeli Maaş Ödemesi',
+                      );
+                      Navigator.of(context).pop();
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: ext.approvedGreen,
+                      foregroundColor: colorScheme.onPrimary,
+                      padding: AppPaddings.buttonPadding,
+                    ),
+                    icon: const Icon(Icons.payments_outlined),
+                    label: const Text('Maaş Yatır (+45.000 ₺)'),
                   ),
-                  icon: const Icon(Icons.military_tech_outlined),
-                  label: Text(
-                    officer.role == 'user'
-                        ? 'Rol / Unvan Değiştir (Müdür / Mutemet Yap)'
-                        : 'Rol / Unvan Değiştir (Standart Memur Yap)',
-                  ),
-                ),
-                AppPaddings.vGapSm,
+                  AppPaddings.vGapSm,
 
-                // 4. Şüpheli Hesabı Dondur / Bloke Kaldır
-                FilledButton.icon(
-                  onPressed: () {
-                    cubit.toggleOfficerFreeze(officer);
-                    Navigator.of(context).pop();
-                  },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: officer.isFrozen
-                        ? colorScheme.primary
-                        : ext.rejectedRed,
-                    foregroundColor: colorScheme.onError,
-                    padding: AppPaddings.buttonPadding,
+                  // 3. Rol / Unvan Değiştir (Başmüfettiş kendi rolünü düşüremez)
+                  OutlinedButton.icon(
+                    onPressed: isProtectedTarget
+                        ? null
+                        : () {
+                            cubit.toggleOfficerManagerRole(officer);
+                            Navigator.of(context).pop();
+                          },
+                    style: OutlinedButton.styleFrom(
+                      padding: AppPaddings.buttonPadding,
+                    ),
+                    icon: const Icon(Icons.military_tech_outlined),
+                    label: Text(
+                      isProtectedTarget
+                          ? 'Başmüfettiş (Admin) Rolü Değiştirilemez'
+                          : (officer.role == 'user'
+                                ? 'Rol / Unvan Değiştir (Müdür / Mutemet Yap)'
+                                : 'Rol / Unvan Değiştir (Standart Memur Yap)'),
+                    ),
                   ),
-                  icon: Icon(
-                    officer.isFrozen
-                        ? Icons.lock_open_outlined
-                        : Icons.ac_unit_outlined,
+                  AppPaddings.vGapSm,
+
+                  // 4. Şüpheli Hesabı Dondur / Bloke Kaldır (Başmüfettiş kendi hesabını donduramaz)
+                  FilledButton.icon(
+                    onPressed: isProtectedTarget
+                        ? null
+                        : () {
+                            cubit.toggleOfficerFreeze(officer);
+                            Navigator.of(context).pop();
+                          },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: officer.isFrozen
+                          ? colorScheme.primary
+                          : ext.rejectedRed,
+                      foregroundColor: colorScheme.onError,
+                      padding: AppPaddings.buttonPadding,
+                    ),
+                    icon: Icon(
+                      officer.isFrozen
+                          ? Icons.lock_open_outlined
+                          : Icons.ac_unit_outlined,
+                    ),
+                    label: Text(
+                      isProtectedTarget
+                          ? 'Başmüfettiş (Admin) Hesabı Dondurulamaz'
+                          : (officer.isFrozen
+                                ? 'Hesap Blokesini Kaldır (Aktifleştir)'
+                                : 'Şüpheli Hesabı Dondur (MASAK Bloke)'),
+                    ),
                   ),
-                  label: Text(
-                    officer.isFrozen
-                        ? 'Hesap Blokesini Kaldır (Aktifleştir)'
-                        : 'Şüpheli Hesabı Dondur (MASAK Bloke)',
-                  ),
-                ),
+                ],
               ],
             ),
           ),

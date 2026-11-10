@@ -5,7 +5,7 @@ import 'package:memur_bank/services/supabase_service.dart';
 
 void main() {
   testWidgets(
-    'MemurBank 3D Splash Auto-Transition -> Login Validation -> MainShell test',
+    'MemurBank 3D Splash -> Fallback Banner -> Sicil No + Password Auth -> MainShell test',
     (WidgetTester tester) async {
       final service = SupabaseService();
       await tester.pumpWidget(
@@ -17,28 +17,42 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 500));
 
-      // 1. SplashScreen (Senaryo 3: 3D KEP Güvenlik Doğrulaması) görünür olmalı, manuel buton olmamalı
+      // 1. SplashScreen (Senaryo 3: 3D KEP Güvenlik Doğrulaması) görünür olmalı
       expect(find.text('3D KEP Güvenlik Doğrulaması'), findsOneWidget);
-      expect(find.text('Kamu Bankacılığı Girişine İlerle'), findsNothing);
 
-      // 2. 3D Animasyon bitince otomatik olarak LoginScreen'e geçmeli
+      // 2. 3D Animasyon bitince otomatik olarak LoginScreen'e geçmeli ve Fallback Banner görünmeli
       await tester.pumpAndSettle();
       expect(find.text('MemurBank Kurumsal Giriş'), findsOneWidget);
-      expect(find.text('T.C. E-Devlet Kapısı ile Giriş Yap'), findsNothing);
+      expect(
+        find.textContaining('YEREL FALLBACK (DEMO) MODU AKTİF'),
+        findsOneWidget,
+      );
 
-      // 3. Geçersiz Sicil No girildiğinde hata vermeli, içeri almamalı
+      // 3. Boş veya geçersiz Sicil No girildiğinde hata vermeli
       await tester.enterText(find.byType(TextFormField).first, 'HATALI-0000');
-      await tester.tap(find.text('Sicil No ile Güvenli Giriş Yap'));
+      await tester.enterText(find.byType(TextFormField).at(1), '123');
+      await tester.tap(find.text('Sicil No ve Şifre ile Giriş Yap'));
       await tester.pumpAndSettle();
       expect(find.textContaining('Geçersiz Kurum Sicil No!'), findsOneWidget);
+
+      // 4. Doğru Sicil No (MAL-0092) + YANLIŞ Şifre ('999') girildiğinde reddetmeli
+      await tester.enterText(find.byType(TextFormField).first, 'MAL-0092');
+      await tester.enterText(find.byType(TextFormField).at(1), '999');
+      await tester.tap(find.text('Sicil No ve Şifre ile Giriş Yap'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Hatalı Giriş Şifresi!'), findsOneWidget);
       expect(find.text('MemurBank Kurumsal Giriş'), findsOneWidget);
 
-      // 4. Geçerli Sicil No (MAL-0092 - Mehmet Kaya) ile giriş yapılabilmeli
-      await tester.enterText(find.byType(TextFormField).first, 'MAL-0092');
-      await tester.tap(find.text('Sicil No ile Güvenli Giriş Yap'));
+      // 5. Doğru Sicil No (MAL-0092) + DOĞRU Şifre ('123') ile giriş yapılabilmeli
+      await tester.enterText(find.byType(TextFormField).at(1), '123');
+      await tester.tap(find.text('Sicil No ve Şifre ile Giriş Yap'));
       await tester.pumpAndSettle();
       expect(find.text('Rol Değiştir (Test)'), findsOneWidget);
       expect(find.text('Teftiş/Yönetim'), findsOneWidget);
+      expect(
+        find.textContaining('YEREL FALLBACK (DEMO) MODU AKTİF'),
+        findsOneWidget,
+      );
     },
   );
 
@@ -49,8 +63,12 @@ void main() {
     await tester.pumpWidget(MemurBankApp(supabaseService: service));
     await tester.pumpAndSettle();
 
-    // 1. User (Ahmet Yılmaz) başlangıç kontrolü
+    // 1. User (Ahmet Yılmaz) başlangıç kontrolü ve üstte Fallback Banner kontrolü
     expect(find.text('MemurBank'), findsOneWidget);
+    expect(
+      find.textContaining('YEREL FALLBACK (DEMO) MODU AKTİF'),
+      findsOneWidget,
+    );
     expect(find.text('Rol Değiştir (Test)'), findsOneWidget);
     expect(find.text('Ahmet Yılmaz'), findsWidgets);
 
