@@ -1,9 +1,10 @@
-/// MemurBank uygulamasında kullanılan sabit metinler, unvan ve kurum tanımları.
+/// MemurBank uygulamasında kullanılan sabit metinler, varlık yolları, unvan ve kurum tanımları.
 class AppStrings {
   const AppStrings._();
 
   static const String appName = 'MemurBank';
   static const String appSubtitle = 'Kamu & Memur Dijital Bankacılık Platformu';
+  static const String appLogoAsset = 'assets/images/memurbank_logo.png';
   static const String securityStamp =
       'Hazine ve Maliye Bakanlığı KEP & Kamu Bankacılığı Güvencesindedir';
 

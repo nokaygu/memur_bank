@@ -3,12 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../bloc/bank_cubit.dart';
 import '../constants/app_paddings.dart';
-import '../stitch_ui/admin_dashboard_card.dart';
-import '../stitch_ui/filter_bar_widget.dart';
-import '../stitch_ui/profile_header_widget.dart';
-import '../widgets/request_card_widget.dart';
+import '../widgets/common/request_card_widget.dart';
+import '../widgets/home/admin_dashboard_card.dart';
+import '../widgets/home/filter_bar_widget.dart';
+import '../widgets/home/profile_header_widget.dart';
 
-/// Ana Sayfa: Zorunlu Modern Sliver Mimarisi
+/// Ana Sayfa: Zorunlu Modern Sliver Mimarisi (`HomeScreen` - `%100 const StatelessWidget`).
 /// (`CustomScrollView` + `const SliverToBoxAdapter` + `const PinnedHeaderSliver` + `SliverList.builder`).
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -110,11 +110,15 @@ class _RecentTransactionsHeader extends StatelessWidget {
             color: colorScheme.primary,
           ),
           AppPaddings.hGapSm,
-          Text(
-            'Son Hesap Hareketleri & Dijital Dekontlar',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: colorScheme.onSurface,
+          Expanded(
+            child: Text(
+              'Son Hesap Hareketleri & Dijital Dekontlar',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: colorScheme.onSurface,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

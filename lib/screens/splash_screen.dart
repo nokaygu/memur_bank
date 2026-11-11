@@ -31,258 +31,299 @@ class SplashScreen extends StatelessWidget {
           ),
         ),
         child: SafeArea(
-          child: Padding(
-            padding: AppPaddings.allXxl,
-            child: TweenAnimationBuilder<double>(
-              tween: Tween<double>(begin: 0.0, end: 1.0),
-              duration: const Duration(milliseconds: 2400),
-              curve: Curves.easeInOutCubic,
-              onEnd: cubit.completeSplash,
-              builder: (context, progress, _) {
-                // 3D Medalyon açılış eğrisi ve açı hesaplamaları
-                final medallionSpinAngle =
-                    (1.0 - progress) * math.pi * 2.0; // 360° Y-ekseni dönüşü
-                final perspectiveTiltX =
-                    math.sin(progress * math.pi) * 0.28; // X-ekseni 3D eğim
-                final medallionScale =
-                    0.72 + (0.28 * Curves.easeOutBack.transform(progress));
-                final outerOrbitAngle = progress * math.pi * 2.5;
-                final innerOrbitAngle = -progress * math.pi * 3.0;
-                final titleReveal = ((progress - 0.15) / 0.55).clamp(0.0, 1.0);
+          child: LayoutBuilder(
+            builder: (context, viewportConstraints) {
+              return SingleChildScrollView(
+                padding: AppPaddings.allXxl,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight:
+                        (viewportConstraints.maxHeight - (AppPaddings.xxl * 2))
+                            .clamp(0.0, double.infinity),
+                  ),
+                  child: IntrinsicHeight(
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween<double>(begin: 0.0, end: 1.0),
+                      duration: const Duration(milliseconds: 2400),
+                      curve: Curves.easeInOutCubic,
+                      onEnd: cubit.completeSplash,
+                      builder: (context, progress, _) {
+                        // 3D Medalyon açılış eğrisi ve açı hesaplamaları
+                        final medallionSpinAngle =
+                            (1.0 - progress) *
+                            math.pi *
+                            2.0; // 360° Y-ekseni dönüşü
+                        final perspectiveTiltX =
+                            math.sin(progress * math.pi) *
+                            0.28; // X-ekseni 3D eğim
+                        final medallionScale =
+                            0.72 +
+                            (0.28 * Curves.easeOutBack.transform(progress));
+                        final outerOrbitAngle = progress * math.pi * 2.5;
+                        final innerOrbitAngle = -progress * math.pi * 3.0;
+                        final titleReveal = ((progress - 0.15) / 0.55).clamp(
+                          0.0,
+                          1.0,
+                        );
 
-                final step1Done = progress >= 0.28;
-                final step2Done = progress >= 0.62;
-                final step3Done = progress >= 0.90;
+                        final step1Done = progress >= 0.28;
+                        final step2Done = progress >= 0.62;
+                        final step3Done = progress >= 0.90;
 
-                return Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Spacer(),
-
-                    // 1. Zengin 3D Perspektif Sahnesi (Çift Yörünge Halkası + 3B Dönen Resmi Madalyon)
-                    Center(
-                      child: SizedBox(
-                        width: AppPaddings.splashOrbitOuterSize,
-                        height: AppPaddings.splashOrbitOuterSize,
-                        child: Stack(
-                          alignment: Alignment.center,
+                        return Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // Dış 3D Jiroskop / Hazine Güvenlik Yörüngesi
-                            Transform(
-                              alignment: Alignment.center,
-                              transform: Matrix4.identity()
-                                ..setEntry(3, 2, 0.0018)
-                                ..rotateX(1.08)
-                                ..rotateY(0.32)
-                                ..rotateZ(outerOrbitAngle),
-                              child: Container(
+                            const Spacer(),
+
+                            // 1. Zengin 3D Perspektif Sahnesi (Çift Yörünge Halkası + 3B Dönen Resmi Madalyon)
+                            Center(
+                              child: SizedBox(
                                 width: AppPaddings.splashOrbitOuterSize,
                                 height: AppPaddings.splashOrbitOuterSize,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: colorScheme.secondary.withValues(
-                                      alpha: 0.55,
-                                    ),
-                                    width: AppPaddings.xxs,
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            // İç Ters Yönlü 3D KEP Kalkan Yörüngesi
-                            Transform(
-                              alignment: Alignment.center,
-                              transform: Matrix4.identity()
-                                ..setEntry(3, 2, 0.0018)
-                                ..rotateX(-0.95)
-                                ..rotateY(-0.42)
-                                ..rotateZ(innerOrbitAngle),
-                              child: Container(
-                                width: AppPaddings.splashOrbitInnerSize,
-                                height: AppPaddings.splashOrbitInnerSize,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: colorScheme.onPrimary.withValues(
-                                      alpha: 0.38,
-                                    ),
-                                    width: AppPaddings.xxs / 2,
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            // Merkezdeki 3D Perspektifli MemurBank Resmi Madalyonu
-                            Transform(
-                              alignment: Alignment.center,
-                              transform: Matrix4.identity()
-                                ..setEntry(3, 2, 0.0022)
-                                ..rotateY(medallionSpinAngle)
-                                ..rotateX(perspectiveTiltX)
-                                ..scaleByDouble(
-                                  medallionScale,
-                                  medallionScale,
-                                  1.0,
-                                  1.0,
-                                ),
-                              child: Container(
-                                padding: AppPaddings.allMd,
-                                decoration: BoxDecoration(
-                                  color: colorScheme.onPrimary.withValues(
-                                    alpha: 0.16,
-                                  ),
-                                  borderRadius: AppPaddings.radiusXxl,
-                                  border: Border.all(
-                                    color: colorScheme.secondary,
-                                    width: AppPaddings.xxs / 1.5,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: colorScheme.secondary.withValues(
-                                        alpha:
-                                            0.20 +
-                                            (0.25 *
-                                                math.sin(progress * math.pi)),
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    // Dış 3D Jiroskop / Hazine Güvenlik Yörüngesi
+                                    Transform(
+                                      alignment: Alignment.center,
+                                      transform: Matrix4.identity()
+                                        ..setEntry(3, 2, 0.0018)
+                                        ..rotateX(1.08)
+                                        ..rotateY(0.32)
+                                        ..rotateZ(outerOrbitAngle),
+                                      child: Container(
+                                        width: AppPaddings.splashOrbitOuterSize,
+                                        height:
+                                            AppPaddings.splashOrbitOuterSize,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: colorScheme.secondary
+                                                .withValues(alpha: 0.55),
+                                            width: AppPaddings.xxs,
+                                          ),
+                                        ),
                                       ),
-                                      blurRadius: AppPaddings.xxl,
-                                      spreadRadius: AppPaddings.xxs,
+                                    ),
+
+                                    // İç Ters Yönlü 3D KEP Kalkan Yörüngesi
+                                    Transform(
+                                      alignment: Alignment.center,
+                                      transform: Matrix4.identity()
+                                        ..setEntry(3, 2, 0.0018)
+                                        ..rotateX(-0.95)
+                                        ..rotateY(-0.42)
+                                        ..rotateZ(innerOrbitAngle),
+                                      child: Container(
+                                        width: AppPaddings.splashOrbitInnerSize,
+                                        height:
+                                            AppPaddings.splashOrbitInnerSize,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: colorScheme.onPrimary
+                                                .withValues(alpha: 0.38),
+                                            width: AppPaddings.xxs / 2,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+
+                                    // Merkezdeki 3D Perspektifli MemurBank Resmi Madalyonu
+                                    Transform(
+                                      alignment: Alignment.center,
+                                      transform: Matrix4.identity()
+                                        ..setEntry(3, 2, 0.0022)
+                                        ..rotateY(medallionSpinAngle)
+                                        ..rotateX(perspectiveTiltX)
+                                        ..scaleByDouble(
+                                          medallionScale,
+                                          medallionScale,
+                                          1.0,
+                                          1.0,
+                                        ),
+                                      child: Container(
+                                        padding: AppPaddings.allMd,
+                                        decoration: BoxDecoration(
+                                          color: colorScheme.onPrimary
+                                              .withValues(alpha: 0.16),
+                                          borderRadius: AppPaddings.radiusXxl,
+                                          border: Border.all(
+                                            color: colorScheme.secondary,
+                                            width: AppPaddings.xxs / 1.5,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: colorScheme.secondary
+                                                  .withValues(
+                                                    alpha:
+                                                        0.20 +
+                                                        (0.25 *
+                                                            math.sin(
+                                                              progress *
+                                                                  math.pi,
+                                                            )),
+                                                  ),
+                                              blurRadius: AppPaddings.xxl,
+                                              spreadRadius: AppPaddings.xxs,
+                                            ),
+                                          ],
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius: AppPaddings.radiusXl,
+                                          child: Image.asset(
+                                            AppStrings.appLogoAsset,
+                                            width: AppPaddings.logoSplashSize,
+                                            height: AppPaddings.logoSplashSize,
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stackTrace) =>
+                                                    Icon(
+                                                      Icons.account_balance,
+                                                      size: AppPaddings
+                                                          .logoSplashSize,
+                                                      color:
+                                                          colorScheme.onPrimary,
+                                                    ),
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
-                                child: ClipRRect(
-                                  borderRadius: AppPaddings.radiusXl,
-                                  child: Image.asset(
-                                    'stitch_ui/memurbank_resmi_logo/screen.png',
-                                    width: AppPaddings.logoSplashSize,
-                                    height: AppPaddings.logoSplashSize,
-                                    fit: BoxFit.cover,
-                                    errorBuilder:
-                                        (context, error, stackTrace) => Icon(
-                                          Icons.account_balance,
-                                          size: AppPaddings.logoSplashSize,
-                                          color: colorScheme.onPrimary,
-                                        ),
+                              ),
+                            ),
+                            AppPaddings.vGapXl,
+
+                            // 2. 3D Derinlikli Kurumsal Başlık
+                            Opacity(
+                              opacity: titleReveal,
+                              child: Transform(
+                                alignment: Alignment.center,
+                                transform: Matrix4.identity()
+                                  ..setEntry(3, 2, 0.0015)
+                                  ..rotateX((1.0 - titleReveal) * 0.45),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      AppStrings.appName,
+                                      textAlign: TextAlign.center,
+                                      style: theme.textTheme.headlineLarge
+                                          ?.copyWith(
+                                            color: colorScheme.onPrimary,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                    ),
+                                    AppPaddings.vGapXs,
+                                    Text(
+                                      AppStrings.appSubtitle,
+                                      textAlign: TextAlign.center,
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            color: colorScheme.primaryContainer,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            AppPaddings.vGapXxl,
+
+                            // 3. Canlı Sistem Kontrol Adımları Kartı (Senaryo 3)
+                            Container(
+                              padding: AppPaddings.cardPadding,
+                              decoration: BoxDecoration(
+                                color: colorScheme.onPrimary.withValues(
+                                  alpha: 0.12,
+                                ),
+                                borderRadius: AppPaddings.radiusLg,
+                                border: Border.all(
+                                  color: colorScheme.onPrimary.withValues(
+                                    alpha: 0.22,
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    AppPaddings.vGapXl,
-
-                    // 2. 3D Derinlikli Kurumsal Başlık
-                    Opacity(
-                      opacity: titleReveal,
-                      child: Transform(
-                        alignment: Alignment.center,
-                        transform: Matrix4.identity()
-                          ..setEntry(3, 2, 0.0015)
-                          ..rotateX((1.0 - titleReveal) * 0.45),
-                        child: Column(
-                          children: [
-                            Text(
-                              AppStrings.appName,
-                              textAlign: TextAlign.center,
-                              style: theme.textTheme.headlineLarge?.copyWith(
-                                color: colorScheme.onPrimary,
-                                fontWeight: FontWeight.w900,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          '3D KEP Güvenlik Doğrulaması',
+                                          style: theme.textTheme.labelMedium
+                                              ?.copyWith(
+                                                color: colorScheme.onPrimary,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      AppPaddings.hGapSm,
+                                      Text(
+                                        '%${(progress * 100).round()}',
+                                        style: theme.textTheme.labelMedium
+                                            ?.copyWith(
+                                              color: colorScheme
+                                                  .secondaryContainer,
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                  AppPaddings.vGapSm,
+                                  ClipRRect(
+                                    borderRadius: AppPaddings.radiusFull,
+                                    child: LinearProgressIndicator(
+                                      value: progress,
+                                      minHeight: AppPaddings.progressHeight,
+                                      backgroundColor: colorScheme.onPrimary
+                                          .withValues(alpha: 0.2),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        colorScheme.secondary,
+                                      ),
+                                    ),
+                                  ),
+                                  AppPaddings.vGapMd,
+                                  _SystemCheckStepRow(
+                                    isDone: step1Done,
+                                    label: 'Supabase & KEP Güvenlik Tüneli Doğrulanıyor...',
+                                  ),
+                                  AppPaddings.vGapXs,
+                                  _SystemCheckStepRow(
+                                    isDone: step2Done,
+                                    label: 'Hazine Kamu Maaş & Avans Protokolleri Yüklendi',
+                                  ),
+                                  AppPaddings.vGapXs,
+                                  _SystemCheckStepRow(
+                                    isDone: step3Done,
+                                    label: 'Kamu Personeli Profilleri Hazır',
+                                  ),
+                                ],
                               ),
                             ),
-                            AppPaddings.vGapXs,
+                            const Spacer(),
+                            AppPaddings.vGapMd,
                             Text(
-                              AppStrings.appSubtitle,
+                              AppStrings.securityStamp,
                               textAlign: TextAlign.center,
-                              style: theme.textTheme.bodyMedium?.copyWith(
+                              style: theme.textTheme.labelSmall?.copyWith(
                                 color: colorScheme.primaryContainer,
-                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
-                        ),
-                      ),
+                        );
+                      },
                     ),
-                    AppPaddings.vGapXxl,
-
-                    // 3. Canlı Sistem Kontrol Adımları Kartı (Senaryo 3)
-                    Container(
-                      padding: AppPaddings.cardPadding,
-                      decoration: BoxDecoration(
-                        color: colorScheme.onPrimary.withValues(alpha: 0.12),
-                        borderRadius: AppPaddings.radiusLg,
-                        border: Border.all(
-                          color: colorScheme.onPrimary.withValues(alpha: 0.22),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                '3D KEP Güvenlik Doğrulaması',
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  color: colorScheme.onPrimary,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              Text(
-                                '%${(progress * 100).round()}',
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  color: colorScheme.secondaryContainer,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ],
-                          ),
-                          AppPaddings.vGapSm,
-                          ClipRRect(
-                            borderRadius: AppPaddings.radiusFull,
-                            child: LinearProgressIndicator(
-                              value: progress,
-                              minHeight: AppPaddings.progressHeight,
-                              backgroundColor: colorScheme.onPrimary.withValues(
-                                alpha: 0.2,
-                              ),
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                colorScheme.secondary,
-                              ),
-                            ),
-                          ),
-                          AppPaddings.vGapMd,
-                          _SystemCheckStepRow(
-                            isDone: step1Done,
-                            label: 'Supabase & KEP Güvenlik Tüneli Doğrulanıyor...',
-                          ),
-                          AppPaddings.vGapXs,
-                          _SystemCheckStepRow(
-                            isDone: step2Done,
-                            label: 'Hazine Kamu Maaş & Avans Protokolleri Yüklendi',
-                          ),
-                          AppPaddings.vGapXs,
-                          _SystemCheckStepRow(
-                            isDone: step3Done,
-                            label: 'Kamu Personeli Profilleri Hazır',
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      AppStrings.securityStamp,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: colorScheme.primaryContainer,
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),

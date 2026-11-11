@@ -120,3 +120,57 @@ YENİ ADIM EKLERKEN KULLANILACAK ŞABLON (Dosyanın en altına ekleyiniz):
   9. `ProfileModel.formatCurrency()` merkezi para formatlayıcısı eklendi; tüm ekranlarda klavye `textInputAction` / `onFieldSubmitted` desteği, `ConnectionStatusBadge` (`Canlı Bulut` / `Yerel Demo`), Yönetim Paneli 1. sekmesinde bekleyen talepleri üstte gösteren sıralama (`sortedRequestsForManagement`) ve Veritabanı Sıfırlama butonu için onay diyaloğu (`AlertDialog`) devreye alındı.
 - Neden yapıldı:
   Kapsamlı proje denetiminde ("Şeytanın Avukatı" incelemesi) tespit edilen tüm mantıksal/yetki açıklarını kapatmak ve kullanıcı arayüzünü daha erişilebilir, tutarlı ve anlaşılır hale getirmek için yapıldı.
+
+[ADIM-10 | 2026-11-11 22:15]
+- Ne yapıldı:
+  1. Kök dizindeki `stitch_ui/memurbank_resmi_logo/screen.png` resmi uygulama logosu `assets/images/memurbank_logo.png` konumuna taşındı; `pubspec.yaml`, `lib/constants/app_strings.dart` (`AppStrings.appLogoAsset`), `splash_screen.dart`, `login_screen.dart` ve `main_shell_screen.dart` içindeki logo referansları güncellendi ve kök dizindeki `/stitch_ui/` klasörü tamamen silindi.
+  2. `.gitignore` içinde yer alan `stitch_ui/` kuralı nedeniyle Git tarafından yok sayılan `lib/stitch_ui/` klasöründeki 4 canlı Dart dosyası (`admin_dashboard_card.dart`, `filter_bar_widget.dart`, `profile_header_widget.dart`, `treasury_charts_widget.dart`) `lib/widgets/home/` ve `lib/widgets/management/` katmanlarına taşındı/bölündü ve `lib/stitch_ui/` klasörü tamamen silindi.
+  3. 1.289 satırlık `lib/bloc/bank_cubit.dart` dosyası 3 ayrı modüle bölündü: `lib/models/transaction_record_model.dart` (`TransactionRecord`), `lib/bloc/bank_state.dart` (`BankState` ve tüm hesaplanmış getter'lar) ve `lib/bloc/bank_cubit.dart` (yalnızca `BankCubit` iş mantığı metodları).
+  4. 748 satırlık eski `profile_header_widget.dart` dosyası 3 ayrı `%100 const StatelessWidget` dosyasına bölündü: `lib/widgets/home/profile_header_widget.dart`, `lib/widgets/home/payroll_detail_bottom_sheet.dart` ve `lib/widgets/home/atm_qr_bottom_sheet.dart`.
+  5. 795 satırlık `lib/screens/transfer_screen.dart` dosyası sadeleştirilerek (64 satır saf Sliver iskeleti), içindeki form ve başlık bileşenleri `lib/widgets/transfer/transfer_header_widgets.dart`, `lib/widgets/transfer/advance_application_card.dart` ve `lib/widgets/transfer/peer_transfer_card.dart` dosyalarına ayrıldı.
+  6. 626 satırlık `lib/screens/management_panel_screen.dart` dosyası sadeleştirilerek (85 satır saf Sliver iskeleti), alt bileşenleri `lib/widgets/management/management_header_widgets.dart` ve `lib/widgets/management/add_new_officer_bottom_sheet.dart` dosyalarına ayrıldı.
+  7. `lib/screens/profile_screen.dart` (138 satır) ve `lib/screens/login_screen.dart` (217 satır) sadeleştirilerek form ve kimlik bileşenleri `lib/widgets/profile/profile_identity_settings_section.dart` ve `lib/widgets/login/login_form_header_card.dart` dosyalarına taşındı.
+  8. `lib/widgets/` altındaki ortak bileşenler `lib/widgets/common/` altına modüler olarak ayrıldı: `connection_status_banners.dart` (`ConnectionStatusBadge`, `FallbackModeStickyBanner`), `role_switcher_bar.dart` (`RoleSwitcherBar`), `request_card_widget.dart` (`RequestCardWidget`), `transaction_item_widget.dart` (`TransactionItemWidget`), `lib/widgets/management/officer_card_widget.dart` (`OfficerCardWidget`) ve `lib/widgets/management/officer_god_mode_bottom_sheet.dart` (`OfficerGodModeBottomSheet`).
+  9. `flutter analyze` (0 hata / 0 uyarı) ve `flutter test` (tüm testler başarılı) çalıştırılarak yeni modüler yapının doğruluğu teyit edildi.
+- Neden yapıldı:
+  Hem kök dizindeki `/stitch_ui/` hem de `/lib/stitch_ui/` klasörlerini tamamen ortadan kaldırarak `.gitignore` kaynaklı veri kaybı riskini bitirmek, projeyi Clean + Layered mimariye %100 uyumlu hale getirmek ve 600–1.289 satırlık kalabalık dosyaları okunabilir, tek sorumluluklu `%100 const StatelessWidget` modüllerine ayırmak için yapıldı.
+
+[ADIM-11 | 2026-11-11 22:21]
+- Ne yapıldı:
+  1. Seçenek B doğrultusunda `lib/bloc/bank_cubit.dart` içerisindeki tüm aksiyonlar (`event`/`action` sorumlulukları) `part` / `part of` mimarisiyle 3 ayrı modüler aksiyon dosyasına bölündü:
+     - `lib/bloc/bank_auth_actions.dart` (`BankAuthActions`: Splash bitişi, Sicil No/Şifre doğrulaması, Login/Logout ve Yöntem C hızlı rol/profil değiştirme aksiyonları)
+     - `lib/bloc/bank_transfer_actions.dart` (`BankTransferActions`: Maaş avansı / memur kredisi başvurusu ve FAST para transferi aksiyonları)
+     - `lib/bloc/bank_admin_actions.dart` (`BankAdminActions`: Mutemetlik talep onay/red, Ayın 15'i toplu maaş dağıtımı ve Başmüfettiş Tanrı Modu aksiyonları)
+  2. Ana `lib/bloc/bank_cubit.dart` dosyası ~205 satıra düşürülerek yalnızca çekirdek Cubit başlatma, `loadInitialData()`, navigasyon/filtre güncellemeleri ve `resetDatabaseAndReload()` metodlarını barındıracak şekilde sadeleştirildi.
+  3. `flutter analyze` (0 hata / 0 uyarı) ve `flutter test` (tüm testler başarılı) ile doğrulandı.
+- Neden yapıldı:
+  Cubit mimarisinin sadeliğini korurken `bloc/` klasörü altındaki iş mantığını ve aksiyonları (`auth`, `transfer`, `admin`) tek bir uzun dosya yerine sorumluluklarına göre ayrılmış modüler Dart dosyalarında yönetmek için yapıldı.
+
+[ADIM-12 | 2026-11-11 22:36]
+- Ne yapıldı:
+  1. `lib/widgets/common/role_switcher_bar.dart` içerisindeki 72px yatay `RenderFlex overflow` hatası giderildi: Üst başlık satırındaki sol `Row` `Expanded(flex: 3)` ve içindeki `'Geliştirici Test Araçları (Yöntem C)'` metni `Expanded` + `TextOverflow.ellipsis` ile, sağdaki `TextButton.icon` ise `Flexible(flex: 2)` ile sarıldı; alt satırdaki 3 rol kartı `IntrinsicHeight` ile eşit yüksekliğe hizalandı.
+  2. `lib/screens/main_shell_screen.dart` `AppBar` aksiyonları ekran genişliğine duyarlı (`MediaQuery.sizeOf(context).width < 400`) hale getirildi; dar ekranlarda kompakt `'Rol'` etiketi ve sıkı ikon yoğunluğu (`VisualDensity.compact`) kullanılarak sol taraftaki `MemurBank` başlığı ve memur adının sıkışması önlendi.
+  3. `lib/widgets/home/filter_bar_widget.dart`, `lib/widgets/management/treasury_charts_widget.dart`, `lib/widgets/home/payroll_detail_bottom_sheet.dart`, `lib/widgets/home/atm_qr_bottom_sheet.dart`, `lib/widgets/common/transaction_item_widget.dart`, `lib/widgets/common/request_card_widget.dart`, `lib/widgets/common/connection_status_banners.dart` ve `lib/screens/home_screen.dart` içerisindeki tüm yatay `Row` başlık/etiket satırları `Expanded` ve `Flexible` ile korundu; Hazine sütun grafiği çubukları `LayoutBuilder` ile dinamik genişliğe bağlandı.
+  4. Tüm modal BottomSheet bileşenleri (`AddNewOfficerBottomSheet`, `OfficerGodModeBottomSheet`, `PayrollDetailBottomSheet`, `AtmQrBottomSheet`, `_DigitalReceiptBottomSheet`) `SingleChildScrollView` + `MediaQuery.viewInsetsOf(context).bottom` klavye boşluğu ile sarılarak klavye açıldığında veya yatay/küçük ekranlarda dikey taşma (`Axis.vertical overflow`) riski tamamen ortadan kaldırıldı.
+  5. `lib/screens/splash_screen.dart` gövdesi `LayoutBuilder` + `SingleChildScrollView` + `ConstrainedBox` + `IntrinsicHeight` yapısına kavuşturuldu.
+  6. `test/widget_test.dart` içerisine `320x568` (iPhone SE) ve `360x800` ekran boyutlarında tüm sekmeleri ve alt sekmeleri gezen Responsive Design & Zero Overflow stres testi eklendi; `flutter analyze` (0 hata / 0 uyarı) ve `flutter test` (`All tests passed!`) doğrulandı.
+- Neden yapıldı:
+  Emülatörde karşılaşılan `RenderFlex overflowed by 72 pixels on the right` hatasını ve farklı ekran boyutlarında (`320px` – `430px`) oluşabilecek tüm yatay/dikey taşma risklerini kalıcı olarak çözmek için yapıldı.
+
+[ADIM-13 | 2026-11-11 22:50]
+- Ne yapıldı:
+  1. `lib/bloc/bank_transfer_actions.dart` içerisindeki `submitAdvanceRequest()` ve `submitMoneyTransfer()` metodları güncellenerek işlem tamamlandığında form alanlarının (`advanceReasonInput: ''`, `advanceAmountInput: '15000'`, `repaymentPlanIndex: 0`, `transferNoteInput: ''`, `transferAmountInput: '2500'`) sıfırlanması ve `formPresetVersion: state.formPresetVersion + 1` artırılarak `%100 StatelessWidget` yapısındaki `TextFormField` kutularının anında temizlenmesi sağlandı.
+  2. `lib/widgets/transfer/advance_application_card.dart` ve `lib/widgets/transfer/peer_transfer_card.dart` içerisindeki gerekçe/açıklama `TextFormField` alanlarına metin dolu olduğunda görünen tek tıkla temizle (`Icons.cancel_outlined`) `suffixIcon` butonu eklendi; hızlı gerekçe şablonlarına tekrar dokunulduğunda seçimi kaldırma (toggle) ve başvuru/transfer gönderildiğinde `FocusManager.instance.primaryFocus?.unfocus()` ile ekran klavyesini otomatik kapatma özelliği eklendi.
+  3. Kamu Maaş Avansı / Memur Kredisi için gerçekçi tek seferlik üst limit kontrolü (`maxPublicAdvanceLimit = 100000.0`) devreye alındı.
+  4. Yatay banner formatındaki eski logo yerine, kullanıcının paylaştığı `1:1` tam kare (`512x512`) kraliyet mavisi geometrik kamu bankası amblemi `assets/images/memurbank_logo.png` olarak kaydedildi; böylece `MainShellScreen` sol üst `AppBar` içinde `"nurBar"` şeklinde kırpılma sorunu tamamen giderildi.
+  5. Android emülatör ana ekranındaki (Launcher) bozuk/beyaz çerçeveli ikon görünümünü düzeltmek için tüm `mipmap-*` (`ic_launcher.png` ve `ic_launcher_foreground.png`) dosyaları yeni kare amblemle üretildi; Android 8+ (API 26+) için `android/app/src/main/res/values/colors.xml` (`#0048BA`), `mipmap-anydpi-v26/ic_launcher.xml` ve `ic_launcher_round.xml` (Adaptive Icon) eklendi; iOS, macOS ve Web ikonları da aynı kare amblemle güncellendi.
+  6. `flutter analyze` (0 hata / 0 uyarı) ve `flutter test` (`All tests passed!`) ile doğrulandı.
+- Neden yapıldı:
+  Avans/transfer başvurusu sonrasında gerekçe yazısının kutuda asılı kalmasını önlemek, kullanıcıya tek tıkla temizleme kolaylığı sunmak ve sol üst AppBar ile emülatör ana ekranındaki bozuk logo/ikon görünümünü modern `1:1` kare kamu bankası amblemiyle kalıcı olarak düzeltmek için yapıldı.
+
+[ADIM-14 | 2026-11-11 23:04]
+- Ne yapıldı:
+  1. Telif/marka benzerliği yaşanmaması için "H" harfli logo yerine, aynı modern kraliyet mavisi degrade ve paralel geometrik çizgiler estetiğinde **MemurBank'a özgü "M" Monogram + Hazine Altını Arma + Kamu Sütunları** içeren %100 özgün `1:1` tam kare logo (`2048x2048` 4x supersampling ile çizilip `512x512` olarak `assets/images/memurbank_logo.png` konumuna) üretildi.
+  2. Tüm Android (`mipmap-*` `ic_launcher.png` ve `ic_launcher_foreground.png`), iOS (`AppIcon.appiconset`), macOS (`AppIcon.appiconset`) ve Web (`favicon.png`, `icons/Icon-*.png`) ikonları bu yeni özgün **MemurBank "M"** amblemiyle güncellendi.
+- Neden yapıldı:
+  Halkbank'ın tescilli "H" logosuyla birebir aynı görünümü kullanmaktan kaynaklanabilecek yasal/telif sorunlarını önlemek ve MemurBank'ın baş harfini ("M") ve Hazine kimliğini taşıyan özgün bir kurumsal amblem oluşturmak için yapıldı.

@@ -1,66 +1,50 @@
-# MemurBank — Kapsamlı Proje Denetimi ("Şeytanın Avukatı" Hata Tespiti) & Arayüz/Erişilebilirlik Geliştirme Planı (`yapilacaklar.md`)
+# MemurBank — Form Sıfırlama Deneyimi (UX) & Yeni Kurumsal Logo / Launcher İkonu Planı (`yapilacaklar.md`)
 
-> **Durum:** Tüm görevler (`1.1` - `11.1`) sırasıyla tamamlanmıştır (`[x]`).
-
----
-
-## 🔴 BÖLÜM 1: Tespit Edilen Hatalar, Mantık Açıkları ve Tutarsızlıklar (Öncelikli Sorunlar)
-
-### 1. `HomeScreen`'de Yorum Satırına Kaymış `if` Koşulu Yüzünden `AdminDashboardCard`'ın Herkese Görünmesi (Kritik UI Hatası)
-- **Konum:** [`lib/screens/home_screen.dart` (Satır 33-34)](file:///home/berat/Projects/memur_bank/lib/screens/home_screen.dart#L33-L34)
-- [x] **1.1.** `lib/screens/home_screen.dart` içindeki yorum satırı düzeltilerek `if (state.activeProfile.isAdminOrManager)` koşulu gerçek kod satırına alındı ve `AdminDashboardCard` içine de güvenlik kontrolü eklendi; artık yalnızca `manager` ve `admin` rollerinde görünüyor.
+> **DURUM:** Bu plandaki tüm maddeler (`1.1` – `1.5` ve `2.1` – `2.3`) eksiksiz olarak uygulanmış, `flutter analyze` (0 hata / 0 uyarı) ve `flutter test` (`All tests passed!`) ile doğrulanmıştır.
 
 ---
 
-### 2. Kurum Mutemedi (`manager`) Rolünün Başmüfettiş "Tanrı Modu (God Mode)" Yetkilerine Erişebilmesi (Yetki Sızıntısı)
-- **Konum:** [`lib/widgets/officer_card_widget.dart`](file:///home/berat/Projects/memur_bank/lib/widgets/officer_card_widget.dart) ve [`lib/bloc/bank_cubit.dart`](file:///home/berat/Projects/memur_bank/lib/bloc/bank_cubit.dart)
-- [x] **2.1.** Tanrı Modu BottomSheet aksiyonları (`Promosyon Gönder`, `Maaş Yatır`, `Rol Değiştir`, `Hesabı Dondur`, `Yeni Memur Ekle`) ve `BankCubit` içindeki God Mode metodları yalnızca `state.activeProfile.isAdmin` için aktif hale getirildi; `manager` (Mutemet) memur kartına tıkladığında salt-okunur **Kurum Mutemetliği Sicil & Maaş Özeti** görüyor.
+## 📝 BÖLÜM 1: Başvuru ve Transfer Sonrası Gerekçe / Form Sıfırlama & Akıllı UX İyileştirmeleri
+
+### 1. Sorunun Tespiti ve Kök Nedeni (`lib/bloc/bank_transfer_actions.dart` & `advance_application_card.dart` & `peer_transfer_card.dart`)
+- **Neden Gerekçe Yazısı Sıfırlanmıyor?**
+  1. `submitAdvanceRequest()` çalıştığında talep Supabase/Fallback listesine ekleniyor ancak `BankState` içindeki `advanceReasonInput`, `advanceAmountInput` ve `formPresetVersion` değerleri **hiç sıfırlanmıyor**.
+  2. Projede `%100 StatelessWidget` kuralı gereği `TextFormField` bileşenleri `initialValue` ve `key: ValueKey('adv-reason-${state.formPresetVersion}')` ile kontrol ediliyor. `formPresetVersion` artırılmadığı sürece `TextFormField` içindeki metin (ekran görüntüsündeki `"Kurum İçi Görevlendirme Haccccccc"` gibi) başvuru tamamlandıktan sonra bile kutunun içinde asılı kalıyor.
+  3. Aynı sorun **Memurlar Arası FAST Para Transferi** (`PeerTransferCard` -> `submitMoneyTransfer()`) sekmesinde de mevcut: Transfer tamamlandığında `transferNoteInput` sıfırlanmıyor ve açıklama `TextFormField` bileşeninde `ValueKey` bulunmuyor.
+  4. Ayrıca kullanıcı hızlı gerekçe şablonuna tıkladıktan sonra metni düzenlerken kutuyu tek tıkla temizleyebileceği bir `X` (`Temizle`) butonu bulunmuyor ve gönderim sonrası klavye açık kalabiliyor.
+  5. İlk ekran görüntüsünde görüldüğü üzere `1.500.000,00 ₺` gibi gerçek dışı büyüklükte avans başvurusu yapılabiliyor (üst limit kontrolü eksikliği).
+
+### 2. Yapılacak Çözümler (Sadece Sıfırlama Değil, Tam Kapsamlı UX Çözümü)
+- [x] **1.1. Başvuru Tamamlandığında Otomatik Form Sıfırlama (`submitAdvanceRequest`):**
+  - `lib/bloc/bank_transfer_actions.dart` içindeki `submitAdvanceRequest()` başarıyla tamamlandığında:
+    - `advanceReasonInput: ''` (boş metin) olarak sıfırlandı,
+    - `advanceAmountInput: '15000'` (varsayılan başlangıç tutarı) ve `repaymentPlanIndex: 0` değerlerine döndürüldü,
+    - **`formPresetVersion: state.formPresetVersion + 1`** artırılarak `%100 StatelessWidget` mimarisindeki hem tutar hem de gerekçe `TextFormField` kutularının anında tertemiz olması sağlandı.
+- [x] **1.2. FAST Transfer Tamamlandığında Otomatik Form Sıfırlama (`submitMoneyTransfer`):**
+  - `submitMoneyTransfer()` başarıyla tamamlandığında `transferNoteInput: ''`, `transferAmountInput: '2500'` ve `formPresetVersion: state.formPresetVersion + 1` ile sıfırlandı; `PeerTransferCard` içindeki açıklama `TextFormField` bileşenine `key: ValueKey('trf-note-${state.formPresetVersion}')` eklendi.
+- [x] **1.3. Gerekçe ve Açıklama Kutularına Tek Tıkla Temizle (`suffixIcon: X`) Butonu Eklenmesi:**
+  - `AdvanceApplicationCard` (Başvuru Gerekçesi) ve `PeerTransferCard` (Transfer Açıklaması) içindeki `TextFormField` bileşenlerinin sağ tarafına (`suffixIcon`), metin dolu olduğunda görünen bir **`Icons.cancel_outlined` (Temizle)** ikonu eklendi. Kullanıcı şablonu seçtikten sonra değiştirmek isterse tek dokunuşla kutuyu sıfırlayabiliyor.
+- [x] **1.4. Hızlı Gerekçe Çiplerinde Seçimi Kaldırma (Toggle) ve Gönderim Sonrası Klavye Kapatma:**
+  - Zaten seçili olan bir hızlı gerekçe şablonuna tekrar tıklandığında metin temizlenecek şekilde güncellendi; başvuru veya transfer butonuna basıldığında `FocusManager.instance.primaryFocus?.unfocus()` ile ekran klavyesi otomatik kapatılarak altta oluşan yeni talep/dekont kartının hemen görünmesi sağlandı.
+- [x] **1.5. Gerçekçi Kamu Maaş Avansı Üst Limit Kontrolü:**
+  - Ekran görüntüsündeki `1.500.000,00 ₺` gibi mantıksız avans tutarlarını engellemek için kamu bankacılığı kuralı olarak maksimum avans/kredi üst sınırı (`100.000 ₺`) kontrolü eklendi ve aşım durumunda bilgilendirici uyarı gösterilmesi sağlandı.
 
 ---
 
-### 3. Başmüfettişin (`admin`) Kendi Rolünü Düşürüp Sistemdeki Tek Admin'i Yok Edebilmesi (Self-Lockout / Kendi Ayağına Sıkma)
-- **Konum:** [`lib/bloc/bank_cubit.dart`](file:///home/berat/Projects/memur_bank/lib/bloc/bank_cubit.dart) ve [`lib/widgets/officer_card_widget.dart`](file:///home/berat/Projects/memur_bank/lib/widgets/officer_card_widget.dart)
-- [x] **3.1.** Başmüfettişin kendi hesabı (`officer.id == state.activeProfile.id`) veya `admin` rolündeki bir profil üzerinde rol düşürme ve hesap dondurma işlemi yapması hem `BankCubit` seviyesinde hem de BottomSheet butonlarında engellendi.
+## 🎨 BÖLÜM 2: Sol Üstteki `"nurBar"` İkon Sorunu ve Emülatör Ana Ekran (Launcher) Logosunun Yenilenmesi
 
----
+### 1. Sorunun Tespiti ve Kök Nedeni (`assets/images/memurbank_logo.png` & `mipmap-*/ic_launcher.png`)
+- **Neden Sol Üstte `"nurBar / BANKACILI"` Yazıyor ve Emülatörde İkon Kötü Görünüyor?**
+  1. Mevcut `assets/images/memurbank_logo.png` dosyası `1:1` kare bir uygulama ikonu değil, **yatay ve çok geniş bir banner (`~4:1` en/boy oranında)**! Sol ucunda küçük bir ikon, ortasında ise `"MemurBank / KAMU BANKACILIĞI"` yazısı yer alıyor.
+  2. **Sol Üst AppBar Sorunu:** `MainShellScreen` AppBar'da (`36x36`), `SplashScreen` 3D madalyonunda ve `LoginScreen`'de bu yatay banner `BoxFit.cover` ile kare kutuya yerleştirildiğinde, Flutter resmin tam **ortasını** kırpıyor. Yatay banner'ın tam ortasında da `"nurBar / BANKACILI"` harfleri bulunduğu için sol üstte kesik bir `"nurBar"` yazısı görünüyor!
+  3. **Emülatör Launcher İkonu Sorunu:** 3. ekran görüntüsünde görüldüğü üzere, aynı yatay banner Android `mipmap-*/ic_launcher.png` içine sıkıştırıldığı için yuvarlak Android ikon çerçevesinin ortasında beyaz boşluklu, yatay kesilmiş ve okunaksız bir görüntü oluşturuyor.
 
-### 4. "Yeni Memur Ekle" Penceresinin Hatalı Girişte Bile Kapanması ve Mükerrer Sicil No Açığı
-- **Konum:** [`lib/screens/management_panel_screen.dart`](file:///home/berat/Projects/memur_bank/lib/screens/management_panel_screen.dart) ve [`lib/bloc/bank_cubit.dart`](file:///home/berat/Projects/memur_bank/lib/bloc/bank_cubit.dart)
-- [x] **4.1.** `addNewOfficer()` metodu `Future<bool>` dönecek şekilde güncellendi; boş alan veya mükerrer `kurum_sicil_no` girildiğinde pencere kapanmadan içeride uyarı gösteriliyor ve yalnızca kayıt başarılı olduğunda BottomSheet kapanıyor.
-
----
-
-### 5. Para Transferinde Dondurulmuş (`isFrozen`) Alıcıya Transfer, Eksik Alıcı Dekontu ve İşlevsiz FAST Şalteri
-- **Konum:** [`lib/bloc/bank_cubit.dart`](file:///home/berat/Projects/memur_bank/lib/bloc/bank_cubit.dart) ve [`lib/screens/transfer_screen.dart`](file:///home/berat/Projects/memur_bank/lib/screens/transfer_screen.dart)
-- [x] **5.1.** Alıcı memur `isFrozen` ise transfer engellendi ve alıcı listesinde kırmızı `"BLOKE HESAP"` uyarısı gösterildi; `fastInstantConfirmEnabled == false` ise transfer engellenip bilgi bandı gösterildi; transfer başarılı olduğunda hem gönderici (`-`) hem alıcı (`+`) için çift yönlü `TransactionRecord` dekontu oluşturuldu.
-
----
-
-### 6. Hesap Hareketlerinde (`activeUserTransactions`) Başka Memurun Dekontlarının Görünmesi
-- **Konum:** [`lib/bloc/bank_cubit.dart`](file:///home/berat/Projects/memur_bank/lib/bloc/bank_cubit.dart) ve [`lib/screens/home_screen.dart`](file:///home/berat/Projects/memur_bank/lib/screens/home_screen.dart)
-- [x] **6.1.** Varsayılan hesap hareketleri 4 memurun (`Ahmet Yılmaz`, `Ayşe Demir`, `Mehmet Kaya`, `Kemal Bey`) kendi kimlikleriyle oluşturuldu ve `activeUserTransactions` bir memurun işlemi yoksa başkasının dekontlarını sızdırmayacak şekilde düzeltildi (`HomeScreen`'de boş durum mesajı eklendi).
-
----
-
-### 7. Ana Sayfa Filtre Çubuğundaki (`FilterBarWidget`) Sayı Tutarsızlığı
-- **Konum:** [`lib/stitch_ui/filter_bar_widget.dart`](file:///home/berat/Projects/memur_bank/lib/stitch_ui/filter_bar_widget.dart)
-- [x] **7.1.** `FilterBarWidget` üzerindeki çip sayaçları (`Tümü`, `Bekleyenler`, `Onaylananlar`, `Reddedilenler`) `state.roleScopedRequests` kullanılarak aktif kullanıcının rol kapsamındaki gerçek kayıt sayılarını gösterecek şekilde güncellendi.
-
----
-
-### 8. Proje Klasöründe Kalan 2 Adet Boş (0 Byte) Ölü Dosya
-- **Konum:** `lib/screens/main_shell.dart` ve `lib/screens/transfer_advance_screen.dart`
-- [x] **8.1.** Kullanılmayan 0 byte'lık `lib/screens/main_shell.dart` ve `lib/screens/transfer_advance_screen.dart` dosyaları silindi.
-
----
-
-## 🎨 BÖLÜM 2: Daha Erişilebilir, Anlaşılır ve Şık Bir Arayüz İçin Geliştirme / Güzelleştirme Önerileri
-
-### 9. Tutarlı Para Birimi Formatlama (`42.500,00 ₺`)
-- [x] **9.1.** [`ProfileModel.formatCurrency()`](file:///home/berat/Projects/memur_bank/lib/models/profile_model.dart#L23-L39) merkezi formatlayıcısı eklendi ve tüm ekranlarda/BottomSheet pencerelerinde tutarların binlik noktalı (`42.500 ₺` / `42.500,00 ₺`) gösterilmesi sağlandı.
-
-### 10. Üst Barda / Giriş Ekranında Net Bağlantı Durumu Rozeti ve Klavye Erişilebilirliği
-- [x] **10.1.** Tüm form alanlarına (`LoginScreen`, `TransferScreen`, `AddNewOfficerBottomSheet`) klavye erişilebilirlik aksiyonları (`textInputAction`, `onFieldSubmitted`) ve `LoginScreen` AppBar / `ProfileScreen` kimlik kartına canlı bağlantı durum rozeti ([`ConnectionStatusBadge`](file:///home/berat/Projects/memur_bank/lib/widgets/role_switcher_bar.dart#L11-L60)) eklendi.
-
-### 11. `ManagementPanelScreen` "1. Onaylar" Sekmesinde Bekleyen / Geçmiş Ayrımı ve Kritik İşlem Onay Diyaloğu
-- [x] **11.1.** [`RoleSwitcherBar`](file:///home/berat/Projects/memur_bank/lib/widgets/role_switcher_bar.dart#L131-L176) içindeki `"Veritabanını Sıfırla ve Demo Verileri Kur"` butonu için onay diyaloğu (`AlertDialog`) eklendi ve Yönetim Paneli 1. sekmesinde bekleyen talepler (`sortedRequestsForManagement`) öncelikli olarak en üstte sıralandı.
+### 2. Yapılacak Çözümler (Paylaşılan Mavi Geometrik Kamu Bankası Ambleminin Uygulanması)
+- [x] **2.1. Yeni `1:1` Tam Kare Kurumsal Mavi Geometrik Amblemin (`assets/images/memurbank_logo.png`) Yerleştirilmesi:**
+  - Kullanıcının paylaştığı 2. görseldeki (kraliyet mavisi degrade zemin üzerinde beyaz simetrik geometrik hatlara sahip modern kamu bankası amblemi) yüksek çözünürlüklü `1:1` tam kare (`512x512`) formatta `assets/images/memurbank_logo.png` olarak kaydedildi.
+- [x] **2.2. Uygulama İçi Tüm Logo Noktalarının (`AppBar`, `SplashScreen`, `LoginScreen`) Düzenlenmesi:**
+  - `MainShellScreen` sol üst `AppBar` içinde (`FilterQuality.high` ve zarif çerçeve ile), `LoginScreen` üst başlık kartında ve `SplashScreen` 3D KEP doğrulama madalyonunda yeni `1:1` kare logo kullanıldı; böylece sol üstteki `"nurBar"` kırpılma hatası tamamen ortadan kaldırıldı.
+- [x] **2.3. Android Emülatör Ana Ekran (Launcher) İkonunun Adaptive & Tam Dolgulu Olarak Yenilenmesi:**
+  - Android `mipmap-mdpi` (`48x48`), `mipmap-hdpi` (`72x72`), `mipmap-xhdpi` (`96x96`), `mipmap-xxhdpi` (`144x144`) ve `mipmap-xxxhdpi` (`192x192`) klasörlerindeki `ic_launcher.png` ve `ic_launcher_foreground.png` dosyaları yeni `1:1` kare mavi amblemden tam dolgulu olarak üretildi.
+  - Android 8+ (API 26+) emülatörlerde yuvarlak/squircle ikon maskelemesinde kenarlarda beyaz boşluk kalmaması için `android/app/src/main/res/values/colors.xml` (`#0048BA`), `android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml` ve `ic_launcher_round.xml` (Adaptive Icon) yapılandırıldı.
+  - Aynı zamanda iOS (`AppIcon.appiconset`), macOS (`AppIcon.appiconset`) ve Web (`favicon.png`, `Icon-192.png`, `Icon-512.png`, `Icon-maskable-*`) ikonları da bu yeni kare amblemle birebir senkronize edildi.

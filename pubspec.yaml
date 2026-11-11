@@ -23,4 +23,4 @@ flutter:
   uses-material-design: true
   assets:
     - .env
-    - stitch_ui/memurbank_resmi_logo/screen.png
+    - assets/images/memurbank_logo.png

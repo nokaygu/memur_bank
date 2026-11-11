@@ -89,4 +89,68 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('3. Hazine & MB'), findsOneWidget);
   });
+
+  testWidgets(
+    'Responsive Design & Zero RenderFlex Overflow stress test on narrow screens (320x568 & 360x800)',
+    (WidgetTester tester) async {
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      for (final screenSize in const [Size(320, 568), Size(360, 800)]) {
+        tester.view.devicePixelRatio = 1.0;
+        tester.view.physicalSize = screenSize;
+
+        final service = SupabaseService();
+        await tester.pumpWidget(MemurBankApp(supabaseService: service));
+        await tester.pumpAndSettle();
+
+        // 1. Ana Sayfa (Hesabım) kaydırma ve kontrol
+        await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+        await tester.pumpAndSettle();
+
+        // 2. Transfer & Avans sekmesi (Her iki mod: Maaş Avansı & Para Transferi)
+        await tester.tap(find.byIcon(Icons.swap_horiz_outlined));
+        await tester.pumpAndSettle();
+        await tester.drag(find.byType(CustomScrollView), const Offset(0, -250));
+        await tester.pumpAndSettle();
+
+        // 3. Profil sekmesi (RoleSwitcherBar 345.4px / 320px genişlik testi dahil)
+        await tester.tap(find.byIcon(Icons.badge_outlined));
+        await tester.pumpAndSettle();
+        await tester.drag(find.byType(CustomScrollView), const Offset(0, -550));
+        await tester.pumpAndSettle();
+        expect(
+          find.text('Geliştirici Test Araçları (Yöntem C)'),
+          findsOneWidget,
+        );
+
+        // 4. Admin rolüne geç ve Teftiş/Yönetim panelinin 3 alt sekmesini de dar ekranda test et
+        await tester.ensureVisible(find.text('Müfettiş (admin)'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Müfettiş (admin)'));
+        await tester.pump(const Duration(seconds: 4));
+        await tester.pumpAndSettle();
+        ScaffoldMessenger.of(tester.element(find.byType(Scaffold).first))
+            .clearSnackBars();
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byIcon(Icons.admin_panel_settings_outlined));
+        await tester.pumpAndSettle();
+
+        // Alt sekme 2: Memurlar
+        await tester.tap(find.byIcon(Icons.manage_accounts_outlined));
+        await tester.pumpAndSettle();
+
+        // Alt sekme 3: Hazine & MB İstatistikleri
+        await tester.tap(find.byIcon(Icons.insights_outlined));
+        await tester.pumpAndSettle();
+        await tester.drag(find.byType(CustomScrollView), const Offset(0, -250));
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
 }

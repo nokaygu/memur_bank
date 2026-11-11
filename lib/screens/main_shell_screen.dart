@@ -6,7 +6,7 @@ import '../bloc/theme_cubit.dart';
 import '../constants/app_paddings.dart';
 import '../constants/app_strings.dart';
 import '../theme/app_theme.dart';
-import '../widgets/role_switcher_bar.dart';
+import '../widgets/common/connection_status_banners.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
 import 'management_panel_screen.dart';
@@ -28,6 +28,8 @@ class MainShellScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final ext = theme.extension<MemurBankThemeExtension>()!;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isCompactBar = screenWidth < 400;
 
     return BlocConsumer<BankCubit, BankState>(
       listenWhen: (previous, current) =>
@@ -111,19 +113,28 @@ class MainShellScreen extends StatelessWidget {
 
         return Scaffold(
           appBar: AppBar(
-            titleSpacing: AppPaddings.md,
+            titleSpacing: AppPaddings.sm,
             title: Row(
               children: [
-                ClipRRect(
-                  borderRadius: AppPaddings.radiusSm,
-                  child: Image.asset(
-                    'stitch_ui/memurbank_resmi_logo/screen.png',
-                    width: AppPaddings.avatarSm,
-                    height: AppPaddings.avatarSm,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => const Icon(
-                      Icons.account_balance,
-                      size: AppPaddings.iconLg,
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: AppPaddings.radiusSm,
+                    border: Border.all(
+                      color: colorScheme.onPrimary.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: AppPaddings.radiusSm,
+                    child: Image.asset(
+                      AppStrings.appLogoAsset,
+                      width: AppPaddings.avatarSm,
+                      height: AppPaddings.avatarSm,
+                      fit: BoxFit.cover,
+                      filterQuality: FilterQuality.high,
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.account_balance,
+                        size: AppPaddings.iconLg,
+                      ),
                     ),
                   ),
                 ),
@@ -139,6 +150,8 @@ class MainShellScreen extends StatelessWidget {
                           color: theme.appBarTheme.foregroundColor,
                           fontWeight: FontWeight.w900,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         '${profile.fullName} • ${profile.role.toUpperCase()}',
@@ -147,6 +160,7 @@ class MainShellScreen extends StatelessWidget {
                             alpha: 0.85,
                           ),
                         ),
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
@@ -155,7 +169,7 @@ class MainShellScreen extends StatelessWidget {
               ],
             ),
             actions: [
-              // Yöntem C: Üst barda tek tıkla Rol Değiştir (Test) butonu
+              // Yöntem C: Üst barda tek tıkla Rol Değiştir (Test) butonu (Ekran genişliğine duyarlı)
               Padding(
                 padding: AppPaddings.allXxs,
                 child: FilledButton.tonalIcon(
@@ -163,13 +177,19 @@ class MainShellScreen extends StatelessWidget {
                   style: FilledButton.styleFrom(
                     backgroundColor: colorScheme.secondary,
                     foregroundColor: colorScheme.onSecondary,
-                    padding: AppPaddings.buttonPaddingCompact,
+                    padding: isCompactBar
+                        ? AppPaddings.chipPadding
+                        : AppPaddings.buttonPaddingCompact,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   icon: const Icon(
                     Icons.switch_account_outlined,
                     size: AppPaddings.iconSm,
                   ),
-                  label: const Text(AppStrings.devRoleSwitchTitle),
+                  label: Text(
+                    isCompactBar ? 'Rol' : AppStrings.devRoleSwitchTitle,
+                  ),
                 ),
               ),
               BlocBuilder<ThemeCubit, ThemeMode>(
@@ -177,6 +197,7 @@ class MainShellScreen extends StatelessWidget {
                   return IconButton(
                     onPressed: () => context.read<ThemeCubit>().toggleTheme(),
                     tooltip: 'Aydınlık / Koyu Tema Değiştir',
+                    visualDensity: VisualDensity.compact,
                     icon: Icon(
                       themeMode == ThemeMode.dark
                           ? Icons.light_mode_outlined
@@ -188,6 +209,7 @@ class MainShellScreen extends StatelessWidget {
               IconButton(
                 onPressed: cubit.logout,
                 tooltip: 'Güvenli Çıkış (Oturumu Kapat)',
+                visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.logout_outlined),
               ),
             ],
